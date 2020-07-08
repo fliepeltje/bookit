@@ -1,3 +1,4 @@
+use chrono::{NaiveDate, Weekday};
 use structopt::StructOpt;
 use time::Time;
 
@@ -8,6 +9,13 @@ enum TimeLog {
     Stretch(Time, Time),
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum DateLog {
+    Yesterday,
+    Weekday(Weekday),
+    Date(NaiveDate),
+}
+
 #[derive(StructOpt, Debug)]
 pub struct BookingArgs {
     /// Project alias
@@ -16,7 +24,8 @@ pub struct BookingArgs {
     #[structopt(parse(try_from_str = parse_time))]
     time: TimeLog,
     /// Date in isoformat or weekday (e.g. "YYYY-MM-DD" | <weekday>)
-    date: Option<String>,
+    #[structopt(short="d", long="date", parse(try_from_str = parse_date))]
+    date: Option<DateLog>,
     /// Description of time expenditure (must pass spelling check)
     message: Option<String>,
     /// Reference to work ticket (e.g. "RAS-002")
@@ -57,9 +66,25 @@ fn parse_time(input: &str) -> Result<TimeLog, String> {
     }
 }
 
+fn parse_date(input: &str) -> Result<DateLog, String> {
+    let input = input.to_lowercase();
+    let days: Vec<&str> = vec!["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    match input.as_ref() {
+        "yesterday" => Ok(DateLog::Yesterday),
+        x if days.contains(&x.get(..3).unwrap_or("")) => {
+            Ok(DateLog::Weekday(x.parse::<Weekday>().unwrap()))
+        }
+        maybe_date => match NaiveDate::parse_from_str(maybe_date, "%Y-%m-%d") {
+            Ok(date) => Ok(DateLog::Date(date)),
+            Err(ctx) => Err(format!("{} is an invalid pattern", ctx)),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn time_parser_ok() {
@@ -91,13 +116,46 @@ mod tests {
         assert!(parse_time("abc").is_err());
     }
 
-    }
     #[test]
-    fn invalid_time_is_err() {
-        assert_eq!(parse_time("::lasts").is_err(), true);
-        assert_eq!(parse_time("::08").is_err(), true);
-        assert_eq!(parse_time("::08:00a").is_err(), true);
-        assert_eq!(parse_time("").is_err(), true);
-        assert_eq!(parse_time("abc").is_err(), true);
+    fn date_parser_ok() {
+        assert!(parse_date("yesterday").is_ok(), "Fail on parsing yesterday");
+        assert!(
+            parse_date("Yesterday").is_ok(),
+            "Fail on not parsing capitalized yesterday"
+        );
+        assert!(
+            parse_date("2020-04-20").is_ok(),
+            "Fail on parsing correct date"
+        );
+        assert!(
+            parse_date("mon").is_ok(),
+            "Fail on parsing valid partial weekday"
+        );
+        assert!(
+            parse_date("monday").is_ok(),
+            "Fail on parsing valid weekday"
+        );
+        assert!(
+            parse_date("Monday").is_ok(),
+            "Fail on handling weekday capitalization"
+        );
+    }
+
+    #[test]
+    fn date_parser_err() {
+        assert!(
+            parse_date("yesterdy").is_err(),
+            "Fail on misspelled yesterday"
+        );
+        assert!(parse_date("2020-04-200").is_err(), "Fail on invalid date");
+        assert!(parse_date("man").is_err(), "Fail on invalid weekday");
+    }
+
+    proptest! {
+        #[test]
+        fn can_parse_valid_date_pattern(y in 1i32..10000, m in 1u32..13, d in 1u32..28) {
+            let s = NaiveDate::from_ymd(y, m, d).to_string();
+            assert!(parse_date(&s).is_ok(), "Fail at {}", s);
+        }
     }
 }
