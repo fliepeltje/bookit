@@ -169,6 +169,11 @@ impl From<BookingArgs> for Booking {
     }
 }
 
+pub fn exec_cmd_book(args: BookingArgs) {
+    let booking: Booking = args.into();
+    println!("{:?}", booking);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
