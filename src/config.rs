@@ -1,6 +1,9 @@
 use chrono::{Local as LocalTime, NaiveDateTime};
 use read_input::prelude::*;
+use std::collections::HashMap;
+use std::{env, fs, path};
 use structopt::StructOpt;
+use toml::{from_str as from_toml, to_string as to_toml};
 
 #[derive(StructOpt, Debug)]
 enum Action {
@@ -52,13 +55,92 @@ pub struct ConfigArgs {
     subject_id: Option<String>,
 }
 
-trait ConfigCrud {
+trait ConfigCrud<'de>
+where
+    Self: std::marker::Sized,
+    Self: Serialize,
+    Self: Deserialize<'de>,
+    Self: Clone,
+{
+    const FILE: &'static str;
     fn new() -> Self;
-    // fn store(self) -> ();
-    // fn retrieve(slug: String) -> Result<Self, String>;
-    // fn update(self) -> Self;
-    // fn delete(self) -> ();
-    // fn inspect(self) -> ();
+    fn identifier(&self) -> String;
+    fn parse(tomlstr: String) -> HashMap<String, Self>;
+    fn update(&self) -> Self;
+
+    fn path() -> path::PathBuf {
+        let dir = env::var("BOOKIT_DIR").expect("No BOOKIT_DIR specified in environment");
+        let dir = path::Path::new(&dir);
+        let filepath = dir.join(Self::FILE);
+        filepath
+    }
+
+    fn toml_content() -> Option<String> {
+        let path = Self::path();
+        match fs::read_to_string(path) {
+            Ok(s) => Some(s.clone()),
+            Err(_) => None,
+        }
+    }
+
+    fn mapping() -> HashMap<String, Self> {
+        match Self::toml_content() {
+            Some(s) => Self::parse(s),
+            None => HashMap::new(),
+        }
+    }
+
+    fn commit_map(map: HashMap<String, Self>) -> () {
+        let tomlstr = to_toml(&map).expect("Unable to encode object");
+        fs::write(Self::path(), tomlstr).expect("Unable to write toml");
+    }
+
+    fn add(&self) -> () {
+        let slug = self.identifier();
+        if Self::exists(&slug) {
+            panic!("Object with given slug already exists")
+        } else {
+            let mut mapping = Self::mapping();
+            mapping.insert(self.identifier(), self.clone());
+            Self::commit_map(mapping);
+        }
+    }
+
+    fn delete(&self) -> () {
+        let slug = self.identifier();
+        if Self::exists(&slug) {
+            let mut mapping = Self::mapping();
+            mapping.remove(&slug);
+            Self::commit_map(mapping);
+        } else {
+            panic!("Object with given slug does not exist")
+        }
+    }
+
+    fn overwrite(&self) -> () {
+        let slug = self.identifier();
+        if Self::exists(&slug) {
+            let mut mapping = Self::mapping();
+            mapping.remove(&slug);
+            mapping.insert(slug, self.clone());
+            Self::commit_map(mapping);
+        } else {
+            panic!("Object with given slug does not exist")
+        }
+    }
+
+    fn exists(slug: &str) -> bool {
+        let map = Self::mapping();
+        map.contains_key(slug)
+    }
+
+    fn retrieve(slug: &str) -> Self {
+        let mapping = Self::mapping();
+        match mapping.get(slug) {
+            Some(obj) => obj.clone(),
+            None => panic!("Object does not exist"),
+        }
+    }
 }
 
 #[derive(Debug)]
