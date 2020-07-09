@@ -1,4 +1,3 @@
-use chrono::{Local as LocalTime, NaiveDateTime};
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -64,9 +63,13 @@ where
     Self: Clone,
 {
     const FILE: &'static str;
+    type DeserializeErr;
+    type SerializeErr;
+
     fn new() -> Self;
     fn identifier(&self) -> String;
-    fn parse(tomlstr: String) -> HashMap<String, Self>;
+    fn deserialize(s: String) -> Result<HashMap<String, Self>, Self::DeserializeErr>;
+    fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr>;
     fn update(&self) -> Self;
 
     fn path() -> path::PathBuf {
@@ -76,7 +79,7 @@ where
         filepath
     }
 
-    fn toml_content() -> Option<String> {
+    fn file_content() -> Option<String> {
         let path = Self::path();
         match fs::read_to_string(path) {
             Ok(s) => Some(s.clone()),
@@ -85,15 +88,20 @@ where
     }
 
     fn mapping() -> HashMap<String, Self> {
-        match Self::toml_content() {
-            Some(s) => Self::parse(s),
+        match Self::file_content() {
+            Some(s) => match ConfigCrud::deserialize(s) {
+                Ok(map) => map,
+                Err(_) => panic!("Unable to deserialize object, file might be corrupt"),
+            },
             None => HashMap::new(),
         }
     }
 
     fn commit_map(map: HashMap<String, Self>) -> () {
-        let tomlstr = to_toml(&map).expect("Unable to encode object");
-        fs::write(Self::path(), tomlstr).expect("Unable to write toml");
+        match ConfigCrud::serialize(map) {
+            Ok(s) => fs::write(Self::path(), s).expect("Unable to write to file"),
+            Err(_) => panic!("Unknown error"),
+        }
     }
 
     fn add(&self) -> () {
@@ -152,6 +160,8 @@ pub struct Contractor {
 
 impl ConfigCrud<'_> for Contractor {
     const FILE: &'static str = "contractors_test.toml";
+    type DeserializeErr = toml::de::Error;
+    type SerializeErr = toml::ser::Error;
 
     fn new() -> Self {
         let name = input::<String>().msg("Contractor name: ").get();
@@ -172,11 +182,12 @@ impl ConfigCrud<'_> for Contractor {
         self.slug.to_owned()
     }
 
-    fn parse(tomlstr: String) -> HashMap<String, Contractor> {
-        match from_toml::<HashMap<String, Contractor>>(&tomlstr) {
-            Ok(map) => map,
-            Err(_) => panic!(""),
-        }
+    fn deserialize(tomlstr: String) -> Result<HashMap<String, Contractor>, Self::DeserializeErr> {
+        from_toml(&tomlstr)
+    }
+
+    fn serialize(map: HashMap<String, Contractor>) -> Result<String, Self::SerializeErr> {
+        to_toml(&map)
     }
 
     fn update(&self) -> Self {
@@ -199,16 +210,19 @@ pub struct Alias {
 
 impl ConfigCrud<'_> for Alias {
     const FILE: &'static str = "alias_test.toml";
+    type DeserializeErr = toml::de::Error;
+    type SerializeErr = toml::ser::Error;
 
     fn identifier(&self) -> String {
         self.slug.to_owned()
     }
 
-    fn parse(tomlstr: String) -> HashMap<String, Alias> {
-        match from_toml::<HashMap<String, Alias>>(&tomlstr) {
-            Ok(map) => map,
-            Err(_) => panic!(""),
-        }
+    fn deserialize(tomlstr: String) -> Result<HashMap<String, Alias>, Self::DeserializeErr> {
+        from_toml(&tomlstr)
+    }
+
+    fn serialize(map: HashMap<String, Alias>) -> Result<String, Self::SerializeErr> {
+        to_toml(&map)
     }
 
     fn new() -> Self {
@@ -310,8 +324,8 @@ pub fn exec_cmd_config(args: ConfigArgs) {
             action: Action::Inspect,
             subject_id: Some(s),
         } => match subject {
-            Subject::Contractor => println!("{:?}", Contractor::retrieve(&s)),
-            Subject::Alias => println!("{:?}", Alias::retrieve(&s)),
+            Subject::Contractor => println!("Not implemented"),
+            Subject::Alias => println!("Not implemented"),
         },
         _ => println!("Nothing happened"),
     }
