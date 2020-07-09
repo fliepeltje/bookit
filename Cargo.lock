@@ -64,6 +64,7 @@ name = "bookit"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "harsh",
  "proptest",
  "structopt",
  "time 0.2.16",
@@ -150,6 +151,12 @@ dependencies = [
  "libc",
  "wasi",
 ]
+
+[[package]]
+name = "harsh"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54791bc1351cc4efa5eba6acead1bdd87dae0d2ba375671f2de6f72349b200d9"
 
 [[package]]
 name = "heck"

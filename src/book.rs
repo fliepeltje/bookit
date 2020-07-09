@@ -1,5 +1,6 @@
-use chrono::{NaiveDate, Weekday};
-use ispell::SpellLauncher;
+use chrono::offset::Local as LocalTime;
+use chrono::{Datelike, NaiveDate, NaiveDateTime, Weekday};
+use harsh::Harsh;
 use std::str::FromStr;
 use structopt::StructOpt;
 use time::Time;
@@ -50,6 +51,19 @@ impl FromStr for TimeArg {
     }
 }
 
+impl From<TimeArg> for u8 {
+    fn from(time: TimeArg) -> Self {
+        match time {
+            TimeArg::Minutes(m) => m,
+            TimeArg::Hours(h) => (60.0 * h) as u8,
+            TimeArg::Stretch(f, l) => {
+                let duration = l - f;
+                duration.whole_minutes() as u8
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum DateArg {
     Today,
@@ -79,6 +93,27 @@ impl FromStr for DateArg {
     }
 }
 
+impl From<DateArg> for NaiveDate {
+    fn from(arg: DateArg) -> Self {
+        let now = LocalTime::now().naive_utc();
+        let today = now.date();
+        match arg {
+            DateArg::Today => today,
+            DateArg::Yesterday => today.pred(),
+            DateArg::Date(date) => date,
+            DateArg::Weekday(day) => {
+                let current_day = today.weekday();
+                let current_week = today.iso_week().week();
+                if current_day.num_days_from_monday() > day.num_days_from_monday() {
+                    NaiveDate::from_isoywd(today.year(), current_week, day)
+                } else {
+                    NaiveDate::from_isoywd(today.year(), current_week - 1, day)
+                }
+            }
+        }
+    }
+}
+
 #[derive(StructOpt, Debug)]
 pub struct BookingArgs {
     /// Project alias
@@ -97,6 +132,39 @@ pub struct BookingArgs {
     /// Reference to git branch for work (e.g. "feature/RAS-002")
     #[structopt(short = "b", long = "branch")]
     branch: Option<String>,
+}
+
+#[derive(Debug)]
+struct Booking {
+    alias: String,
+    minutes: u8,
+    date: NaiveDate,
+    message: Option<String>,
+    ticket: Option<String>,
+    branch: Option<String>,
+    id: String,
+    timestamp: NaiveDateTime,
+}
+
+impl From<BookingArgs> for Booking {
+    fn from(args: BookingArgs) -> Self {
+        let now = LocalTime::now().naive_utc();
+        let encoder = Harsh::builder()
+            .salt("bookit")
+            .build()
+            .expect("could not create encoder");
+        let timestamp = now.timestamp();
+        Self {
+            alias: args.alias,
+            minutes: args.time.into(),
+            date: args.date.into(),
+            message: args.message,
+            ticket: args.ticket,
+            branch: args.branch,
+            id: encoder.encode(&[timestamp as u64]),
+            timestamp: LocalTime::now().naive_utc(),
+        }
+    }
 }
 
 #[cfg(test)]
