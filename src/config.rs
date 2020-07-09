@@ -189,10 +189,63 @@ impl ConfigCrud<'_> for Contractor {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Alias {
+    pub slug: String,
+    pub contractor: String,
+    pub short_description: String,
+    pub hourly_rate: u8,
+}
+
+impl ConfigCrud<'_> for Alias {
+    const FILE: &'static str = "alias_test.toml";
+
+    fn identifier(&self) -> String {
+        self.slug.to_owned()
+    }
+
+    fn parse(tomlstr: String) -> HashMap<String, Alias> {
+        match from_toml::<HashMap<String, Alias>>(&tomlstr) {
+            Ok(map) => map,
+            Err(_) => panic!(""),
+        }
+    }
+
+    fn new() -> Self {
+        let slug = input::<String>()
+            .msg("Alias: ")
+            .add_test(|x| *x == slugify(x.into()))
+            .get();
+        let contractor = input::<String>().msg("Contractor slug: ").get();
+        let short_description = input::<String>().msg("Brief description: ").get();
+        let hourly_rate = input::<u8>().msg("Hourly rate: ").get();
         Self {
             slug,
-            name,
-            added_on,
+            contractor,
+            short_description,
+            hourly_rate,
+        }
+    }
+
+    fn update(&self) -> Self {
+        let slug = self.slug.to_owned();
+        let contractor = input::<String>()
+            .msg(format!("Contractor slug: [{}]", self.contractor))
+            .default(self.contractor.clone())
+            .get();
+        let short_description = input::<String>()
+            .msg(format!("Brief description: [{}]", self.short_description))
+            .default(self.short_description.clone())
+            .get();
+        let hourly_rate = input::<u8>()
+            .msg(format!("Hourly rate: [{}]", self.hourly_rate))
+            .default(self.hourly_rate)
+            .get();
+        Self {
+            slug,
+            contractor,
+            short_description,
+            hourly_rate,
         }
     }
 }
