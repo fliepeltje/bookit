@@ -254,6 +254,31 @@ fn slugify(s: String) -> String {
     s.to_lowercase().split_whitespace().collect()
 }
 
+fn add_subject<'de, T>() -> ()
+where
+    T: ConfigCrud<'de>,
+{
+    let obj = T::new();
+    obj.add();
+}
+
+fn update_subject<'de, T>(obj_slug: &str) -> ()
+where
+    T: ConfigCrud<'de>,
+{
+    let obj = T::retrieve(obj_slug);
+    let obj = obj.update();
+    obj.overwrite();
+}
+
+fn delete_subject<'de, T>(obj_slug: &str) -> ()
+where
+    T: ConfigCrud<'de>,
+{
+    let obj = T::retrieve(obj_slug);
+    obj.delete();
+}
+
 pub fn exec_cmd_config(args: ConfigArgs) {
     match args {
         ConfigArgs {
