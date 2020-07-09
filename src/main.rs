@@ -1,5 +1,6 @@
 mod book;
 mod config;
+mod generics;
 use book::{exec_cmd_book, BookingArgs};
 use config::{exec_cmd_config, ConfigArgs};
 use structopt::StructOpt;
