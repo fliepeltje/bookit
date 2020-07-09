@@ -1,5 +1,6 @@
 use chrono::{Local as LocalTime, NaiveDateTime};
 use read_input::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{env, fs, path};
 use structopt::StructOpt;
@@ -143,14 +144,15 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Contractor {
     pub slug: String,
     pub name: String,
-    pub added_on: NaiveDateTime,
 }
 
-impl ConfigCrud for Contractor {
+impl ConfigCrud<'_> for Contractor {
+    const FILE: &'static str = "contractors_test.toml";
+
     fn new() -> Self {
         let name = input::<String>().msg("Contractor name: ").get();
         let slug = slugify(name.clone());
@@ -163,7 +165,30 @@ impl ConfigCrud for Contractor {
             .msg(slug_msg)
             .default(slug)
             .get();
-        let added_on = LocalTime::now().naive_local();
+        Self { slug, name }
+    }
+
+    fn identifier(&self) -> String {
+        self.slug.to_owned()
+    }
+
+    fn parse(tomlstr: String) -> HashMap<String, Contractor> {
+        match from_toml::<HashMap<String, Contractor>>(&tomlstr) {
+            Ok(map) => map,
+            Err(_) => panic!(""),
+        }
+    }
+
+    fn update(&self) -> Self {
+        let name = input::<String>()
+            .msg("Contractor name: ")
+            .default(self.name.clone())
+            .get();
+        let slug = self.slug.clone();
+        Self { name, slug }
+    }
+}
+
         Self {
             slug,
             name,
