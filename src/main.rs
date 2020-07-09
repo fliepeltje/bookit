@@ -1,9 +1,46 @@
+mod alias;
 mod book;
 mod config;
 mod generics;
+mod utils;
+use alias::{exec_cmd_alias, AliasArgs};
 use book::{exec_cmd_book, BookingArgs};
 use config::{exec_cmd_config, ConfigArgs};
 use structopt::StructOpt;
+
+#[derive(Debug)]
+pub enum Action {
+    Add,
+    Update,
+    Delete,
+    View,
+}
+
+impl std::str::FromStr for Action {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "add" => Ok(Self::Add),
+            "update" => Ok(Self::Update),
+            "delete" => Ok(Self::Delete),
+            "view" => Ok(Self::View),
+            _ => Err("nope".into()),
+        }
+    }
+}
+
+impl std::string::ToString for Action {
+    fn to_string(&self) -> String {
+        let s = match self {
+            Action::Add => "add",
+            Action::Update => "update",
+            Action::Delete => "delete",
+            Action::View => "view",
+        };
+        s.to_owned()
+    }
+}
 
 #[derive(StructOpt, Debug)]
 enum Opt {
@@ -13,12 +50,16 @@ enum Opt {
     /// View and modify bookit configuration
     #[structopt(name = "config")]
     Config(ConfigArgs),
+    /// Manage aliases
+    #[structopt(name = "alias")]
+    Alias(AliasArgs),
 }
 
 fn main() {
     match Opt::from_args() {
         Opt::Book(args) => exec_cmd_book(args),
         Opt::Config(args) => exec_cmd_config(args),
+        Opt::Alias(args) => exec_cmd_alias(args),
         opt => println!("{:?}", opt),
     };
 }
