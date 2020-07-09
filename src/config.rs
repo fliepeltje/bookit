@@ -1,4 +1,5 @@
-use crate::generics::{add_subject, delete_subject, update_subject, Crud};
+use crate::generics::{add_subject, delete_subject, update_subject, Crud, View};
+use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -20,7 +21,7 @@ impl std::str::FromStr for Action {
         match s {
             "new" => Ok(Self::Create),
             "update" => Ok(Self::Update),
-            "show" => Ok(Self::Inspect),
+            "view" | "show" => Ok(Self::Inspect),
             "delete" => Ok(Self::Delete),
             ctx => Err(format!("Unknown action: {}", ctx)),
         }
@@ -153,6 +154,18 @@ impl Crud<'_> for Alias {
     }
 }
 
+impl View for Alias {
+    fn format_list_item(&self) -> String {
+        format!(
+            "{:7} {:7} {:30} {:5}",
+            self.slug.red().bold(),
+            self.contractor.cyan(),
+            self.short_description,
+            self.hourly_rate.to_string().green().bold()
+        )
+    }
+}
+
 impl Alias {
     fn new() -> Self {
         let slug = input::<String>()
@@ -207,7 +220,13 @@ pub fn exec_cmd_config(args: ConfigArgs) {
             subject_id,
         } => match subject {
             Subject::Contractor => println!("Not implemented"),
-            Subject::Alias => println!("Not implemented"),
+            Subject::Alias => match subject_id {
+                Some(slug) => println!("{}", Alias::retrieve(&slug).format_detail()),
+                None => {
+                    let items = Alias::mapping().values().cloned().collect::<Vec<Alias>>();
+                    println!("{}", Alias::format_list(items));
+                }
+            },
         },
         _ => println!("Nothing happened"),
     }
