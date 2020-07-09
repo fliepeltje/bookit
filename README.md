@@ -1,3 +1,5 @@
+![Rust](https://github.com/fliepeltje/bookit/workflows/Rust/badge.svg?branch=master&event=push)
+
 ## What is this?
 
 A CLI tool for keeping track of how your time is spent, specifically in the context of freelancing.
