@@ -1,5 +1,5 @@
 mod book;
-use book::BookingArgs;
+use book::{exec_cmd_book, BookingArgs};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -16,6 +16,8 @@ enum Opt {
 }
 
 fn main() {
-    let opt = Opt::from_args();
-    println!("{:?}", opt);
+    match Opt::from_args() {
+        Opt::Book(args) => exec_cmd_book(args),
+        opt => println!("{:?}", opt),
+    };
 }
