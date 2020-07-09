@@ -1,4 +1,4 @@
-use crate::generics::{add_subject, delete_subject, update_subject, Crud, View};
+use crate::generics::{add_subject, delete_subject, update_subject, view_subject, Crud, View};
 use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -229,14 +229,8 @@ pub fn exec_cmd_config(args: ConfigArgs) {
             action: Action::Inspect,
             subject_id,
         } => match subject {
-            Subject::Contractor => println!("Not implemented"),
-            Subject::Alias => match subject_id {
-                Some(slug) => println!("{}", Alias::retrieve(&slug).format_detail()),
-                None => {
-                    let items = Alias::mapping().values().cloned().collect::<Vec<Alias>>();
-                    println!("{}", Alias::format_list(items));
-                }
-            },
+            Subject::Contractor => view_subject::<Contractor>(subject_id),
+            Subject::Alias => view_subject::<Alias>(subject_id),
         },
         _ => println!("Nothing happened"),
     }
