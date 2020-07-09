@@ -1,15 +1,14 @@
 use chrono::offset::Local as LocalTime;
-use chrono::{Datelike, NaiveDate, NaiveDateTime, Weekday};
+use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
 use harsh::Harsh;
 use std::str::FromStr;
 use structopt::StructOpt;
-use time::Time;
 
 #[derive(Debug, PartialEq)]
 enum TimeArg {
     Minutes(u8),
     Hours(f32),
-    Stretch(Time, Time),
+    Stretch(NaiveTime, NaiveTime),
 }
 
 type TimeArgError = String;
@@ -26,14 +25,15 @@ impl FromStr for TimeArg {
                     Err(ctx) => Err(format!("{}", ctx)),
                 },
                 (Some(s), Some(stretch)) if s == "s" || s == "t" => {
+                    let now = LocalTime::now().naive_local().time();
                     if stretch == "last" {
-                        Ok(Self::Stretch(Time::now(), Time::now()))
+                        Ok(Self::Stretch(now, now))
                     } else {
-                        let time = Time::parse(format!("{}:00", stretch), "%T")
-                            .expect("incorrect time argument (HH:MM or last)");
+                        let fmt_time = format!("{}:00", stretch);
+                        let time = NaiveTime::from_str(&fmt_time).expect("");
                         match s {
-                            "s" => Ok(Self::Stretch(time, Time::now())),
-                            "t" => Ok(Self::Stretch(Time::now(), time)),
+                            "s" => Ok(Self::Stretch(time, now)),
+                            "t" => Ok(Self::Stretch(now, time)),
                             _ => Err("unknown stretch directive".into()),
                         }
                     }
@@ -57,8 +57,10 @@ impl From<TimeArg> for u8 {
             TimeArg::Minutes(m) => m,
             TimeArg::Hours(h) => (60.0 * h) as u8,
             TimeArg::Stretch(f, l) => {
-                let duration = l - f;
-                duration.whole_minutes() as u8
+                let l_min = (l.hour() * 60) + l.minute();
+                let f_min = (f.hour() * 60) + f.minute();
+                let duration = l_min - f_min;
+                duration as u8
             }
         }
     }
@@ -148,7 +150,7 @@ struct Booking {
 
 impl From<BookingArgs> for Booking {
     fn from(args: BookingArgs) -> Self {
-        let now = LocalTime::now().naive_utc();
+        let now = LocalTime::now().naive_local();
         let encoder = Harsh::builder()
             .salt("bookit")
             .build()
