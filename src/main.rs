@@ -1,11 +1,13 @@
 mod alias;
 mod book;
 mod config;
+mod contractors;
 mod generics;
 mod utils;
 use alias::{exec_cmd_alias, AliasArgs};
 use book::{exec_cmd_book, BookingArgs};
 use config::{exec_cmd_config, ConfigArgs};
+use contractors::{exec_cmd_contractor, ContractorArgs};
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -53,13 +55,16 @@ enum Opt {
     /// Manage aliases
     #[structopt(name = "alias")]
     Alias(AliasArgs),
+    /// Manage contractors
+    #[structopt(name = "contractors")]
+    Contractors(ContractorArgs),
 }
 
 fn main() {
     match Opt::from_args() {
         Opt::Book(args) => exec_cmd_book(args),
-        Opt::Config(args) => exec_cmd_config(args),
         Opt::Alias(args) => exec_cmd_alias(args),
+        Opt::Contractors(args) => exec_cmd_contractor(args),
         opt => println!("{:?}", opt),
     };
 }
