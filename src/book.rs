@@ -1,4 +1,5 @@
 use chrono::{NaiveDate, Weekday};
+use ispell::SpellLauncher;
 use std::str::FromStr;
 use structopt::StructOpt;
 use time::Time;
@@ -88,10 +89,13 @@ pub struct BookingArgs {
     #[structopt(short = "d", long = "date", default_value = "today")]
     date: DateArg,
     /// Description of time expenditure (must pass spelling check)
+    #[structopt(short = "m", long = "message")]
     message: Option<String>,
     /// Reference to work ticket (e.g. "RAS-002")
+    #[structopt(short = "t", long = "ticket")]
     ticket: Option<String>,
     /// Reference to git branch for work (e.g. "feature/RAS-002")
+    #[structopt(short = "b", long = "branch")]
     branch: Option<String>,
 }
 
