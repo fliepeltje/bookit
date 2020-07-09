@@ -97,6 +97,24 @@ where
     }
 }
 
+pub trait View
+where
+    Self: std::marker::Sized,
+{
+    fn format_list_item(&self) -> String;
+
+    fn format_detail(&self) -> String {
+        self.format_list_item()
+    }
+    fn format_list(items: Vec<Self>) -> String {
+        let v = items
+            .iter()
+            .map(|x| x.format_list_item())
+            .collect::<Vec<String>>();
+        v.join("\n")
+    }
+}
+
 pub fn add_subject<'de, T>(obj: T) -> ()
 where
     T: Crud<'de>,
