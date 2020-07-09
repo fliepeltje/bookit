@@ -12,12 +12,10 @@ where
     const FILE: &'static str;
     type DeserializeErr;
     type SerializeErr;
-
-    fn new() -> Self;
     fn identifier(&self) -> String;
     fn deserialize(s: String) -> Result<HashMap<String, Self>, Self::DeserializeErr>;
     fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr>;
-    fn update(&self) -> Self;
+    fn interactive_update(&self) -> Self;
 
     fn path() -> path::PathBuf {
         let dir = env::var("BOOKIT_DIR").expect("No BOOKIT_DIR specified in environment");
@@ -99,11 +97,10 @@ where
     }
 }
 
-pub fn add_subject<'de, T>() -> ()
+pub fn add_subject<'de, T>(obj: T) -> ()
 where
     T: Crud<'de>,
 {
-    let obj = T::new();
     obj.add();
 }
 
@@ -112,7 +109,7 @@ where
     T: Crud<'de>,
 {
     let obj = T::retrieve(obj_slug);
-    let obj = obj.update();
+    let obj = obj.interactive_update();
     obj.overwrite();
 }
 

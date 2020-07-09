@@ -66,6 +66,29 @@ impl Crud<'_> for Contractor {
     type DeserializeErr = toml::de::Error;
     type SerializeErr = toml::ser::Error;
 
+    fn identifier(&self) -> String {
+        self.slug.to_owned()
+    }
+
+    fn deserialize(tomlstr: String) -> Result<HashMap<String, Contractor>, Self::DeserializeErr> {
+        from_toml(&tomlstr)
+    }
+
+    fn serialize(map: HashMap<String, Contractor>) -> Result<String, Self::SerializeErr> {
+        to_toml(&map)
+    }
+
+    fn interactive_update(&self) -> Self {
+        let name = input::<String>()
+            .msg("Contractor name: ")
+            .default(self.name.clone())
+            .get();
+        let slug = self.slug.clone();
+        Self { name, slug }
+    }
+}
+
+impl Contractor {
     fn new() -> Self {
         let name = input::<String>().msg("Contractor name: ").get();
         let slug = slugify(name.clone());
@@ -79,27 +102,6 @@ impl Crud<'_> for Contractor {
             .default(slug)
             .get();
         Self { slug, name }
-    }
-
-    fn identifier(&self) -> String {
-        self.slug.to_owned()
-    }
-
-    fn deserialize(tomlstr: String) -> Result<HashMap<String, Contractor>, Self::DeserializeErr> {
-        from_toml(&tomlstr)
-    }
-
-    fn serialize(map: HashMap<String, Contractor>) -> Result<String, Self::SerializeErr> {
-        to_toml(&map)
-    }
-
-    fn update(&self) -> Self {
-        let name = input::<String>()
-            .msg("Contractor name: ")
-            .default(self.name.clone())
-            .get();
-        let slug = self.slug.clone();
-        Self { name, slug }
     }
 }
 
@@ -128,23 +130,7 @@ impl Crud<'_> for Alias {
         to_toml(&map)
     }
 
-    fn new() -> Self {
-        let slug = input::<String>()
-            .msg("Alias: ")
-            .add_test(|x| *x == slugify(x.into()))
-            .get();
-        let contractor = input::<String>().msg("Contractor slug: ").get();
-        let short_description = input::<String>().msg("Brief description: ").get();
-        let hourly_rate = input::<u8>().msg("Hourly rate: ").get();
-        Self {
-            slug,
-            contractor,
-            short_description,
-            hourly_rate,
-        }
-    }
-
-    fn update(&self) -> Self {
+    fn interactive_update(&self) -> Self {
         let slug = self.slug.to_owned();
         let contractor = input::<String>()
             .msg(format!("Contractor slug: [{}]", self.contractor))
@@ -167,6 +153,24 @@ impl Crud<'_> for Alias {
     }
 }
 
+impl Alias {
+    fn new() -> Self {
+        let slug = input::<String>()
+            .msg("Alias: ")
+            .add_test(|x| *x == slugify(x.into()))
+            .get();
+        let contractor = input::<String>().msg("Contractor slug: ").get();
+        let short_description = input::<String>().msg("Brief description: ").get();
+        let hourly_rate = input::<u8>().msg("Hourly rate: ").get();
+        Self {
+            slug,
+            contractor,
+            short_description,
+            hourly_rate,
+        }
+    }
+}
+
 fn slugify(s: String) -> String {
     s.to_lowercase().split_whitespace().collect()
 }
@@ -178,8 +182,8 @@ pub fn exec_cmd_config(args: ConfigArgs) {
             action: Action::Create,
             subject_id: None,
         } => match subject {
-            Subject::Contractor => add_subject::<Contractor>(),
-            Subject::Alias => add_subject::<Alias>(),
+            Subject::Contractor => add_subject::<Contractor>(Contractor::new()),
+            Subject::Alias => add_subject::<Alias>(Alias::new()),
         },
         ConfigArgs {
             subject,
@@ -200,7 +204,7 @@ pub fn exec_cmd_config(args: ConfigArgs) {
         ConfigArgs {
             subject,
             action: Action::Inspect,
-            subject_id: Some(s),
+            subject_id,
         } => match subject {
             Subject::Contractor => println!("Not implemented"),
             Subject::Alias => println!("Not implemented"),
