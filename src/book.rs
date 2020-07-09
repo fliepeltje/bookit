@@ -1,13 +1,8 @@
-use crate::generics::{add_subject, Crud, View};
+use crate::generics::{add_subject, View};
+use crate::hours::HourLog;
 use chrono::offset::Local as LocalTime;
-use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
-use colored::*;
+use chrono::{Datelike, NaiveDate, NaiveTime, Timelike, Weekday};
 use harsh::Harsh;
-use serde::{Deserialize, Serialize};
-use serde_json::de::from_str as from_json;
-use serde_json::error::Error as JsonError;
-use serde_json::ser::to_string as to_json;
-use std::collections::HashMap;
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -143,19 +138,7 @@ pub struct BookingArgs {
     branch: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Booking {
-    alias: String,
-    minutes: u8,
-    date: NaiveDate,
-    message: Option<String>,
-    ticket: Option<String>,
-    branch: Option<String>,
-    id: String,
-    timestamp: NaiveDateTime,
-}
-
-impl From<BookingArgs> for Booking {
+impl From<BookingArgs> for HourLog {
     fn from(args: BookingArgs) -> Self {
         let now = LocalTime::now().naive_local();
         let encoder = Harsh::builder()
@@ -170,61 +153,16 @@ impl From<BookingArgs> for Booking {
             message: args.message,
             ticket: args.ticket,
             branch: args.branch,
-            id: encoder.encode(&[timestamp as u64]),
+            id: encoder.encode(&[timestamp as u64]).to_lowercase(),
             timestamp: LocalTime::now().naive_utc(),
         }
     }
 }
 
-impl View for Booking {
-    fn format_list_item(&self) -> String {
-        let alias = format!("<{}>", &self.alias);
-        let ticket = match &self.ticket {
-            Some(t) => format!("[{}] ", t),
-            None => "".into(),
-        };
-        let msg = match &self.message {
-            Some(m) => m,
-            None => "No message",
-        };
-        let description = format!("{}{}", ticket.bold(), msg);
-        let minutes = format!("({} minutes)", &self.minutes);
-        format!(
-            "* {:7} - {} {} {}",
-            &self.id.red().bold(),
-            description,
-            alias.purple().bold(),
-            minutes.green()
-        )
-    }
-}
-
-impl Crud<'_> for Booking {
-    const FILE: &'static str = "hourstest.json";
-    type SerializeErr = JsonError;
-    type DeserializeErr = JsonError;
-
-    fn identifier(&self) -> String {
-        self.id.clone()
-    }
-
-    fn deserialize(s: String) -> Result<HashMap<String, Self>, Self::DeserializeErr> {
-        from_json(&s)
-    }
-
-    fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr> {
-        to_json(&map)
-    }
-
-    fn interactive_update(&self) -> Self {
-        self.clone()
-    }
-}
-
 pub fn exec_cmd_book(args: BookingArgs) {
-    let booking: Booking = args.into();
-    add_subject(booking.clone());
-    println!("{}", booking.format_list_item())
+    let hours: HourLog = args.into();
+    add_subject(hours.clone());
+    println!("{}", hours.format_list_item())
 }
 
 #[cfg(test)]
