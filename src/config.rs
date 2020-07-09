@@ -89,6 +89,16 @@ impl Crud<'_> for Contractor {
     }
 }
 
+impl View for Contractor {
+    fn format_list_item(&self) -> String {
+        format!(
+            "{:7} {:10}",
+            self.slug.bold().red(),
+            self.name.bold().blue()
+        )
+    }
+}
+
 impl Contractor {
     fn new() -> Self {
         let name = input::<String>().msg("Contractor name: ").get();
