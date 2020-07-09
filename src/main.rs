@@ -2,10 +2,12 @@ mod alias;
 mod book;
 mod contractors;
 mod generics;
+mod hours;
 mod utils;
 use alias::{exec_cmd_alias, AliasArgs};
 use book::{exec_cmd_book, BookingArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
+use hours::{exec_cmd_hours, HourLogArgs};
 use structopt::StructOpt;
 
 #[derive(Debug)]
@@ -47,6 +49,9 @@ enum Opt {
     /// Book time for a project alias
     #[structopt(name = "book")]
     Book(BookingArgs),
+    /// View or delete existing hourlog item
+    #[structopt(name = "hours")]
+    Hours(HourLogArgs),
     /// Manage aliases
     #[structopt(name = "alias")]
     Alias(AliasArgs),
@@ -60,5 +65,6 @@ fn main() {
         Opt::Book(args) => exec_cmd_book(args),
         Opt::Alias(args) => exec_cmd_alias(args),
         Opt::Contractors(args) => exec_cmd_contractor(args),
+        Opt::Hours(args) => exec_cmd_hours(args),
     };
 }
