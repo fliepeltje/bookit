@@ -1,4 +1,4 @@
-use crate::generics::{add_subject, Crud};
+use crate::generics::{add_subject, Crud, View};
 use chrono::offset::Local as LocalTime;
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
 use colored::*;
@@ -176,8 +176,8 @@ impl From<BookingArgs> for Booking {
     }
 }
 
-impl std::fmt::Display for Booking {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl View for Booking {
+    fn format_list_item(&self) -> String {
         let alias = format!("<{}>", &self.alias);
         let ticket = match &self.ticket {
             Some(t) => format!("[{}] ", t),
@@ -189,8 +189,7 @@ impl std::fmt::Display for Booking {
         };
         let description = format!("{}{}", ticket.bold(), msg);
         let minutes = format!("({} minutes)", &self.minutes);
-        write!(
-            f,
+        format!(
             "* {:7} - {} {} {}",
             &self.id.red().bold(),
             description,
@@ -224,7 +223,8 @@ impl Crud<'_> for Booking {
 
 pub fn exec_cmd_book(args: BookingArgs) {
     let booking: Booking = args.into();
-    add_subject(booking);
+    add_subject(booking.clone());
+    println!("{}", booking.format_list_item())
 }
 
 #[cfg(test)]
