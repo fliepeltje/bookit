@@ -138,3 +138,17 @@ where
     let obj = T::retrieve(obj_slug);
     obj.delete();
 }
+
+pub fn view_subject<'de, T>(obj_slug: Option<String>) -> ()
+where
+    T: Crud<'de>,
+    T: View,
+{
+    match obj_slug {
+        Some(slug) => println!("{}", T::retrieve(&slug).format_detail()),
+        None => {
+            let items = T::mapping().values().cloned().collect::<Vec<T>>();
+            println!("{}", T::format_list(items))
+        }
+    }
+}
