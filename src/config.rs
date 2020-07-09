@@ -286,11 +286,32 @@ pub fn exec_cmd_config(args: ConfigArgs) {
             action: Action::Create,
             subject_id: None,
         } => match subject {
-            Subject::Contractor => {
-                let contractor = Contractor::new();
-                println!("{:?}", contractor)
-            }
-            Subject::Alias => println!("Nope"),
+            Subject::Contractor => add_subject::<Contractor>(),
+            Subject::Alias => add_subject::<Alias>(),
+        },
+        ConfigArgs {
+            subject,
+            action: Action::Update,
+            subject_id: Some(s),
+        } => match subject {
+            Subject::Contractor => update_subject::<Contractor>(&s),
+            Subject::Alias => update_subject::<Alias>(&s),
+        },
+        ConfigArgs {
+            subject,
+            action: Action::Delete,
+            subject_id: Some(s),
+        } => match subject {
+            Subject::Contractor => delete_subject::<Contractor>(&s),
+            Subject::Alias => delete_subject::<Alias>(&s),
+        },
+        ConfigArgs {
+            subject,
+            action: Action::Inspect,
+            subject_id: Some(s),
+        } => match subject {
+            Subject::Contractor => println!("{:?}", Contractor::retrieve(&s)),
+            Subject::Alias => println!("{:?}", Alias::retrieve(&s)),
         },
         _ => println!("Nothing happened"),
     }
@@ -299,7 +320,6 @@ pub fn exec_cmd_config(args: ConfigArgs) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
 
     #[test]
     fn slugify_ok() {
