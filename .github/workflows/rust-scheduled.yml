@@ -1,4 +1,4 @@
-name: Rust Check and Bloat
+name: Dependency Check
 
 on:
   schedule:
