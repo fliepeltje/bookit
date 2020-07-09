@@ -1,5 +1,6 @@
 use chrono::offset::Local as LocalTime;
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
+use colored::*;
 use harsh::Harsh;
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -169,9 +170,33 @@ impl From<BookingArgs> for Booking {
     }
 }
 
+impl std::fmt::Display for Booking {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let alias = format!("<{}>", &self.alias);
+        let ticket = match &self.ticket {
+            Some(t) => format!("[{}] ", t),
+            None => "".into(),
+        };
+        let msg = match &self.message {
+            Some(m) => m,
+            None => "No message",
+        };
+        let description = format!("{}{}", ticket.bold(), msg);
+        let minutes = format!("({} minutes)", &self.minutes);
+        write!(
+            f,
+            "* {:7} - {} {} {}",
+            &self.id.red().bold(),
+            description,
+            alias.purple().bold(),
+            minutes.green()
+        )
+    }
+}
+
 pub fn exec_cmd_book(args: BookingArgs) {
     let booking: Booking = args.into();
-    println!("{:?}", booking);
+    println!("{}", booking);
 }
 
 #[cfg(test)]
