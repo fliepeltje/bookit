@@ -1,7 +1,13 @@
+use crate::generics::{add_subject, Crud};
 use chrono::offset::Local as LocalTime;
 use chrono::{Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Weekday};
 use colored::*;
 use harsh::Harsh;
+use serde::{Deserialize, Serialize};
+use serde_json::de::from_str as from_json;
+use serde_json::error::Error as JsonError;
+use serde_json::ser::to_string as to_json;
+use std::collections::HashMap;
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -137,7 +143,7 @@ pub struct BookingArgs {
     branch: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Booking {
     alias: String,
     minutes: u8,
@@ -194,9 +200,31 @@ impl std::fmt::Display for Booking {
     }
 }
 
+impl Crud<'_> for Booking {
+    const FILE: &'static str = "hourstest.json";
+    type SerializeErr = JsonError;
+    type DeserializeErr = JsonError;
+
+    fn identifier(&self) -> String {
+        self.id.clone()
+    }
+
+    fn deserialize(s: String) -> Result<HashMap<String, Self>, Self::DeserializeErr> {
+        from_json(&s)
+    }
+
+    fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr> {
+        to_json(&map)
+    }
+
+    fn interactive_update(&self) -> Self {
+        self.clone()
+    }
+}
+
 pub fn exec_cmd_book(args: BookingArgs) {
     let booking: Booking = args.into();
-    println!("{}", booking);
+    add_subject(booking);
 }
 
 #[cfg(test)]
