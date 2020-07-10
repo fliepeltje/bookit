@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{env, fs, path};
 
-type Result<T, E = CliError> = std::result::Result<T, E>;
+pub type Result<T, E = CliError> = std::result::Result<T, E>;
 type Mapping<T> = HashMap<String, T>;
 
 pub trait Crud<'de>
@@ -43,7 +43,7 @@ where
         let content = Self::file_content()?;
         match Crud::deserialize(content) {
             Ok(map) => Ok(map),
-            Err(_) => Err(CliError::DeserializeFail { content }),
+            Err(_) => Err(CliError::DeserializeFail),
         }
     }
 

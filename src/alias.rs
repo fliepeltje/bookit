@@ -1,4 +1,6 @@
-use crate::generics::{add_subject, delete_subject, update_subject, view_subject, Crud, View};
+use crate::generics::{
+    add_subject, delete_subject, update_subject, view_subject, Crud, Result, View,
+};
 use crate::utils::slugify;
 use crate::Action;
 use colored::*;
@@ -8,15 +10,16 @@ use std::collections::HashMap;
 use structopt::StructOpt;
 use toml::{from_str as from_toml, to_string as to_toml};
 
-pub fn exec_cmd_alias(args: AliasArgs) {
+pub fn exec_cmd_alias(args: AliasArgs) -> Result<()> {
     match (args.action, args.slug) {
-        (Action::Add, None) => add_subject(Alias::new()),
-        (Action::Delete, Some(slug)) => delete_subject::<Alias>(&slug),
-        (Action::Update, Some(slug)) => update_subject::<Alias>(&slug),
-        (Action::View, maybe_slug) => view_subject::<Alias>(maybe_slug),
+        (Action::Add, None) => add_subject(Alias::new())?,
+        (Action::Delete, Some(slug)) => delete_subject::<Alias>(&slug)?,
+        (Action::Update, Some(slug)) => update_subject::<Alias>(&slug)?,
+        (Action::View, maybe_slug) => view_subject::<Alias>(maybe_slug)?,
         (Action::Add, Some(_)) => println!("The add action does not require a slug"),
         (action, None) => println!("{} requires a slug", action.to_string().bold()),
-    }
+    };
+    Ok(())
 }
 
 #[derive(StructOpt, Debug)]
