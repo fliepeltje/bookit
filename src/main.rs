@@ -9,6 +9,7 @@ use alias::{exec_cmd_alias, AliasArgs};
 use book::{exec_cmd_book, BookingArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
 use errors::CliError;
+use generics::Result;
 use hours::{exec_cmd_hours, HourLogArgs};
 use structopt::StructOpt;
 
@@ -64,11 +65,12 @@ enum Opt {
     Contractors(ContractorArgs),
 }
 
-fn main() {
+fn main() -> Result<()> {
     match Opt::from_args() {
-        Opt::Book(args) => exec_cmd_book(args),
-        Opt::Alias(args) => exec_cmd_alias(args),
-        Opt::Contractors(args) => exec_cmd_contractor(args),
-        Opt::Hours(args) => exec_cmd_hours(args),
+        Opt::Book(args) => exec_cmd_book(args)?,
+        Opt::Alias(args) => exec_cmd_alias(args)?,
+        Opt::Contractors(args) => exec_cmd_contractor(args)?,
+        Opt::Hours(args) => exec_cmd_hours(args)?,
     };
+    Ok(())
 }
