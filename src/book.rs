@@ -1,4 +1,4 @@
-use crate::generics::{add_subject, View};
+use crate::generics::{add_subject, Result, View};
 use crate::hours::HourLog;
 use chrono::offset::Local as LocalTime;
 use chrono::{Datelike, NaiveDate, NaiveTime, Timelike, Weekday};
@@ -159,10 +159,11 @@ impl From<BookingArgs> for HourLog {
     }
 }
 
-pub fn exec_cmd_book(args: BookingArgs) {
+pub fn exec_cmd_book(args: BookingArgs) -> Result<()> {
     let hours: HourLog = args.into();
     add_subject(hours.clone());
-    println!("{}", hours.format_list_item())
+    println!("{}", hours.format_list_item());
+    Ok(())
 }
 
 #[cfg(test)]

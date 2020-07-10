@@ -15,8 +15,8 @@ pub enum CliError {
     ReadFail { source: std::io::Error },
     #[snafu(display("unable to write content to file {}", source))]
     WriteFail { source: std::io::Error },
-    #[snafu(display("unable to deserialize file content:\n{}", content))]
-    DeserializeFail { content: String },
+    #[snafu(display("unable to deserialize file content"))]
+    DeserializeFail,
     #[snafu(display("unable to serialize struct"))]
     SerializeFail,
     #[snafu(display("object with slug {} already exists", slug))]

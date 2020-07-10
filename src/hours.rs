@@ -1,4 +1,4 @@
-use crate::generics::{delete_subject, view_subject, Crud, View};
+use crate::generics::{delete_subject, view_subject, Crud, Result, View};
 use crate::Action;
 use chrono::{NaiveDate, NaiveDateTime};
 use colored::*;
@@ -9,16 +9,17 @@ use serde_json::ser::to_string as to_json;
 use std::collections::HashMap;
 use structopt::StructOpt;
 
-pub fn exec_cmd_hours(args: HourLogArgs) {
+pub fn exec_cmd_hours(args: HourLogArgs) -> Result<()> {
     match (args.action, args.slug) {
-        (Action::View, slug) => view_subject::<HourLog>(slug),
-        (Action::Delete, Some(slug)) => delete_subject::<HourLog>(&slug),
+        (Action::View, slug) => view_subject::<HourLog>(slug)?,
+        (Action::Delete, Some(slug)) => delete_subject::<HourLog>(&slug)?,
         (Action::Delete, None) => println!("delete requires a slug to be specified"),
         (action, _) => println!(
             "{} is not a valid action for this object",
             action.to_string().bold()
         ),
-    }
+    };
+    Ok(())
 }
 
 #[derive(StructOpt, Debug)]
