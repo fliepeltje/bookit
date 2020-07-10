@@ -1,6 +1,10 @@
+use crate::errors::CliError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{env, fs, path};
+
+type Result<T, E = CliError> = std::result::Result<T, E>;
+type Mapping<T> = HashMap<String, T>;
 
 pub trait Crud<'de>
 where
@@ -13,86 +17,95 @@ where
     type DeserializeErr;
     type SerializeErr;
     fn identifier(&self) -> String;
-    fn deserialize(s: String) -> Result<HashMap<String, Self>, Self::DeserializeErr>;
+    fn deserialize(s: String) -> Result<Mapping<Self>, Self::DeserializeErr>;
     fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr>;
     fn interactive_update(&self) -> Self;
 
-    fn path() -> path::PathBuf {
-        let dir = env::var("BOOKIT_DIR").expect("No BOOKIT_DIR specified in environment");
-        let dir = path::Path::new(&dir);
-        let filepath = dir.join(Self::FILE);
-        filepath
-    }
-
-    fn file_content() -> Option<String> {
-        let path = Self::path();
-        match fs::read_to_string(path) {
-            Ok(s) => Some(s.clone()),
-            Err(_) => None,
+    fn path() -> Result<path::PathBuf> {
+        match env::var("BOOKIT_DIR") {
+            Ok(path_str) => Ok(path::Path::new(&path_str).join(Self::FILE)),
+            Err(source) => Err(CliError::MissingEnvVar {
+                source,
+                var: "BOOKIT_DIR".into(),
+            }),
         }
     }
 
-    fn mapping() -> HashMap<String, Self> {
-        match Self::file_content() {
-            Some(s) => match Crud::deserialize(s) {
-                Ok(map) => map,
-                Err(_) => panic!("Unable to deserialize object, file might be corrupt"),
-            },
-            None => HashMap::new(),
+    fn file_content() -> Result<String> {
+        let f = Self::path()?;
+        match fs::read_to_string(f) {
+            Ok(s) => Ok(s.clone()),
+            Err(err) => Err(CliError::ReadFail { source: err }),
         }
     }
 
-    fn commit_map(map: HashMap<String, Self>) -> () {
+    fn mapping() -> Result<Mapping<Self>> {
+        let content = Self::file_content()?;
+        match Crud::deserialize(content) {
+            Ok(map) => Ok(map),
+            Err(_) => Err(CliError::DeserializeFail { content }),
+        }
+    }
+
+    fn commit_map(map: HashMap<String, Self>) -> Result<()> {
         match Crud::serialize(map) {
-            Ok(s) => fs::write(Self::path(), s).expect("Unable to write to file"),
-            Err(_) => panic!("Unknown error"),
+            Ok(s) => match fs::write(Self::path()?, s) {
+                Ok(_) => Ok(()),
+                Err(source) => Err(CliError::WriteFail { source }),
+            },
+            Err(_) => Err(CliError::SerializeFail),
         }
     }
 
-    fn add(&self) -> () {
+    fn add(&self) -> Result<()> {
         let slug = self.identifier();
         if Self::exists(&slug) {
-            panic!("Object with given slug already exists")
+            Err(CliError::SlugExists { slug })
         } else {
-            let mut mapping = Self::mapping();
+            let mut mapping = Self::mapping()?;
             mapping.insert(self.identifier(), self.clone());
             Self::commit_map(mapping);
+            Ok(())
         }
     }
 
-    fn delete(&self) -> () {
+    fn delete(&self) -> Result<()> {
         let slug = self.identifier();
         if Self::exists(&slug) {
-            let mut mapping = Self::mapping();
+            let mut mapping = Self::mapping()?;
             mapping.remove(&slug);
-            Self::commit_map(mapping);
+            Ok(Self::commit_map(mapping)?)
         } else {
-            panic!("Object with given slug does not exist")
+            Err(CliError::SlugMissing { slug })
         }
     }
 
-    fn overwrite(&self) -> () {
+    fn overwrite(&self) -> Result<()> {
         let slug = self.identifier();
         if Self::exists(&slug) {
-            let mut mapping = Self::mapping();
+            let mut mapping = Self::mapping()?;
             mapping.remove(&slug);
             mapping.insert(slug, self.clone());
-            Self::commit_map(mapping);
+            Ok(Self::commit_map(mapping)?)
         } else {
-            panic!("Object with given slug does not exist")
+            Err(CliError::SlugMissing { slug })
         }
     }
 
     fn exists(slug: &str) -> bool {
-        let map = Self::mapping();
-        map.contains_key(slug)
+        match Self::mapping() {
+            Ok(map) => map.contains_key(slug),
+            Err(_) => false,
+        }
     }
 
-    fn retrieve(slug: &str) -> Self {
-        let mapping = Self::mapping();
+    fn retrieve(slug: &str) -> Result<Self> {
+        let mapping = Self::mapping()?;
         match mapping.get(slug) {
-            Some(obj) => obj.clone(),
-            None => panic!("Object does not exist"),
+            Some(obj) => Ok(obj.clone()),
+            None => Err(CliError::SlugMissing {
+                slug: slug.to_owned(),
+            }),
         }
     }
 }
@@ -115,40 +128,41 @@ where
     }
 }
 
-pub fn add_subject<'de, T>(obj: T) -> ()
+pub fn add_subject<'de, T>(obj: T) -> Result<()>
 where
     T: Crud<'de>,
 {
-    obj.add();
+    Ok(obj.add()?)
 }
 
-pub fn update_subject<'de, T>(obj_slug: &str) -> ()
+pub fn update_subject<'de, T>(obj_slug: &str) -> Result<()>
 where
     T: Crud<'de>,
 {
-    let obj = T::retrieve(obj_slug);
+    let obj = T::retrieve(obj_slug)?;
     let obj = obj.interactive_update();
-    obj.overwrite();
+    Ok(obj.overwrite()?)
 }
 
-pub fn delete_subject<'de, T>(obj_slug: &str) -> ()
+pub fn delete_subject<'de, T>(obj_slug: &str) -> Result<()>
 where
     T: Crud<'de>,
 {
-    let obj = T::retrieve(obj_slug);
-    obj.delete();
+    let obj = T::retrieve(obj_slug)?;
+    Ok(obj.delete()?)
 }
 
-pub fn view_subject<'de, T>(obj_slug: Option<String>) -> ()
+pub fn view_subject<'de, T>(obj_slug: Option<String>) -> Result<()>
 where
     T: Crud<'de>,
     T: View,
 {
     match obj_slug {
-        Some(slug) => println!("{}", T::retrieve(&slug).format_detail()),
+        Some(slug) => println!("{}", T::retrieve(&slug)?.format_detail()),
         None => {
-            let items = T::mapping().values().cloned().collect::<Vec<T>>();
+            let items = T::mapping()?.values().cloned().collect::<Vec<T>>();
             println!("{}", T::format_list(items))
         }
-    }
+    };
+    Ok(())
 }
