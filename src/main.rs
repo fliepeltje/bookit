@@ -1,12 +1,14 @@
 mod alias;
 mod book;
 mod contractors;
+mod errors;
 mod generics;
 mod hours;
 mod utils;
 use alias::{exec_cmd_alias, AliasArgs};
 use book::{exec_cmd_book, BookingArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
+use errors::CliError;
 use hours::{exec_cmd_hours, HourLogArgs};
 use structopt::StructOpt;
 
@@ -19,7 +21,7 @@ pub enum Action {
 }
 
 impl std::str::FromStr for Action {
-    type Err = String;
+    type Err = CliError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -27,7 +29,9 @@ impl std::str::FromStr for Action {
             "update" => Ok(Self::Update),
             "delete" => Ok(Self::Delete),
             "view" => Ok(Self::View),
-            _ => Err("nope".into()),
+            action => Err(CliError::UnknownAction {
+                action_input: action.into(),
+            }),
         }
     }
 }
