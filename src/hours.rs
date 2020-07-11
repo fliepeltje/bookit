@@ -30,7 +30,7 @@ pub struct HourLogArgs {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HourLog {
     pub alias: String,
-    pub minutes: u8,
+    pub minutes: u32,
     pub date: NaiveDate,
     pub message: Option<String>,
     pub ticket: Option<String>,
