@@ -20,12 +20,18 @@ where
     fn interactive_update(&self) -> Self;
 
     fn path() -> Result<path::PathBuf> {
-        let basedir = env::var("BOOKIT")?;
+        let basedir = match env::var("BOOKIT_DIR") {
+            Ok(dir) => Ok(dir),
+            Err(var_error) => Err(CliError::Env("BOOKIT_DIR".to_string(), var_error)),
+        }?;
         Ok(path::Path::new(&basedir).join(Self::FILE))
     }
 
     fn file_content() -> Result<String> {
-        Ok(fs::read_to_string(Self::path()?)?)
+        match fs::read_to_string(Self::path()?) {
+            Ok(s) => Ok(s),
+            Err(io_err) => Err(CliError::Read(io_err)),
+        }
     }
 
     fn mapping() -> Result<Mapping<Self>> {
@@ -36,8 +42,10 @@ where
 
     fn commit_map(map: HashMap<String, Self>) -> Result<()> {
         let s = Crud::serialize(map)?;
-        fs::write(Self::path()?, s)?;
-        Ok(())
+        match fs::write(Self::path()?, s) {
+            Ok(()) => Ok(()),
+            Err(io_err) => Err(CliError::Write(io_err)),
+        }
     }
 
     fn add(&self) -> Result<()> {
@@ -81,8 +89,9 @@ where
         let mapping = Self::mapping()?;
         match mapping.get(slug) {
             Some(obj) => Ok(obj.clone()),
-            None => Err(CliError::SlugMissing {
+            None => Err(CliError::Slug {
                 slug: slug.to_owned(),
+                expect: true,
             }),
         }
     }

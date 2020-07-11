@@ -1,53 +1,85 @@
-use snafu::Snafu;
+use colored::*;
 use std::env::VarError;
+use std::error::Error;
 
-#[derive(Debug, Snafu)]
+#[derive(Debug)]
 pub enum CliError {
-    UnknownAction { action_input: String },
-    MissingEnvVar { msg: String },
-    SlugExists { slug: String },
-    SlugMissing { slug: String },
+    UnknownAction(String),
     Slug { slug: String, expect: bool },
-    IO { msg: String },
-    Serialization { msg: String },
+    Read(std::io::Error),
+    Write(std::io::Error),
+    Serialization(String),
+    Env(String, VarError),
 }
 
-impl From<VarError> for CliError {
-    fn from(err: VarError) -> Self {
-        Self::MissingEnvVar {
-            msg: err.to_string(),
-        }
-    }
+impl Error for CliError {}
+
+fn error_descriptor(err_type: &str) -> ColoredString {
+    return format!("[{} Error]", err_type).bold().red();
 }
 
-impl From<std::io::Error> for CliError {
-    fn from(err: std::io::Error) -> Self {
-        Self::IO {
-            msg: err.to_string(),
+impl std::fmt::Display for CliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Env(var, e) => write!(
+                f,
+                "{} {} {}",
+                error_descriptor("Environment"),
+                var.yellow(),
+                e
+            ),
+            Self::UnknownAction(action) => {
+                let actions = format!(
+                    "{} | {} | {} | {}",
+                    "add".green(),
+                    "update".green(),
+                    "delete".green(),
+                    "view".green()
+                );
+                write!(
+                    f,
+                    "\n\n{} {} is not a valid action (actions: {})",
+                    error_descriptor("Usage"),
+                    action.yellow(),
+                    actions
+                )
+            }
+            Self::Slug { slug, expect } => {
+                let suffix = if *expect {
+                    "was not found but was expected"
+                } else {
+                    "already exists"
+                };
+                write!(
+                    f,
+                    "{} slug {} {}",
+                    error_descriptor("Lookup"),
+                    slug.yellow().bold(),
+                    suffix
+                )
+            }
+            Self::Serialization(msg) => {
+                write!(f, "{} {}", error_descriptor("Data Transformation"), msg)
+            }
+            Self::Read(e) | Self::Write(e) => write!(f, "{} {}", error_descriptor("IO"), e),
         }
     }
 }
 
 impl From<toml::ser::Error> for CliError {
     fn from(err: toml::ser::Error) -> Self {
-        Self::Serialization {
-            msg: err.to_string(),
-        }
+        Self::Serialization(err.to_string())
     }
 }
 
 impl From<toml::de::Error> for CliError {
     fn from(err: toml::de::Error) -> CliError {
-        Self::Serialization {
-            msg: err.to_string(),
-        }
+        Self::Serialization(err.to_string())
     }
 }
 
 impl From<serde_json::Error> for CliError {
     fn from(err: serde_json::Error) -> CliError {
-        Self::Serialization {
-            msg: err.to_string(),
-        }
+        Self::Serialization(err.to_string())
     }
 }
