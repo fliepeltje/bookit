@@ -12,12 +12,15 @@ pub enum CliError {
     Env(String, VarError),
     Directive { input: String, context: String },
     Parse { input: String, description: String },
+    SlugNotFound { slug: String, existing: Vec<String> },
 }
 
 impl Error for CliError {}
 
 fn error_descriptor(err_type: &str) -> ColoredString {
-    return format!("[{} Error]", err_type).bold().red();
+    return format!("\n{}[{} Error]", "└─".red().bold(), err_type)
+        .bold()
+        .red();
 }
 
 impl std::fmt::Display for CliError {
@@ -40,9 +43,9 @@ impl std::fmt::Display for CliError {
                 );
                 write!(
                     f,
-                    "\n\n{} {} is not a valid action (actions: {})",
+                    "{} {} is not a valid action. Available actions are: {}",
                     error_descriptor("Usage"),
-                    action.yellow(),
+                    action.yellow().bold(),
                     actions
                 )
             }
@@ -60,6 +63,19 @@ impl std::fmt::Display for CliError {
                     suffix
                 )
             }
+            Self::SlugNotFound { slug, existing } => write!(
+                f,
+                "{} {} not found. Available values are: {}",
+                error_descriptor("Lookup"),
+                slug.yellow().bold(),
+                match existing.len() {
+                    0..=10 => format!("{}", existing.join(" | ").green()),
+                    _ => format!(
+                        "{} (output truncated...)",
+                        existing[0..10].to_vec().join(" | ").green()
+                    ),
+                }
+            ),
             Self::Serialization(msg) => {
                 write!(f, "{} {}", error_descriptor("Data Transformation"), msg)
             }

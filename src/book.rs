@@ -1,3 +1,4 @@
+use crate::alias::Alias;
 use crate::errors::CliError;
 use crate::generics::{add_subject, Result, View};
 use crate::hours::HourLog;
@@ -73,7 +74,7 @@ impl From<Directive> for u32 {
 #[derive(StructOpt, Debug)]
 pub struct BookingArgs {
     /// Project alias
-    alias: String,
+    alias: Alias,
     /// Time in minutes or a stretch pattern (e.g. <int> | h::<f64> | <s or t>::HH:MM | s::last)
     time: Directive,
     /// Date in isoformat or weekday (e.g. "YYYY-MM-DD" | <weekday>)
@@ -101,14 +102,14 @@ impl TryFrom<BookingArgs> for HourLog {
             .expect("could not create encoder");
         let timestamp = now.timestamp();
         Ok(Self {
-            alias: args.alias,
+            alias: args.alias.slug,
             minutes: args.time.into(),
             date: args.date,
             message: args.message,
             ticket: args.ticket,
             branch: args.branch,
             id: encoder.encode(&[timestamp as u64]).to_lowercase(),
-            timestamp: LocalTime::now().naive_local(),
+            timestamp: now,
         })
     }
 }
