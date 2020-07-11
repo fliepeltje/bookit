@@ -14,88 +14,66 @@ where
     Self: Clone,
 {
     const FILE: &'static str;
-    type DeserializeErr;
-    type SerializeErr;
     fn identifier(&self) -> String;
-    fn deserialize(s: String) -> Result<Mapping<Self>, Self::DeserializeErr>;
-    fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr>;
+    fn deserialize(s: String) -> Result<Mapping<Self>>;
+    fn serialize(map: HashMap<String, Self>) -> Result<String>;
     fn interactive_update(&self) -> Self;
 
     fn path() -> Result<path::PathBuf> {
-        match env::var("BOOKIT_DIR") {
-            Ok(path_str) => Ok(path::Path::new(&path_str).join(Self::FILE)),
-            Err(source) => Err(CliError::MissingEnvVar {
-                source,
-                var: "BOOKIT_DIR".into(),
-            }),
-        }
+        let basedir = env::var("BOOKIT")?;
+        Ok(path::Path::new(&basedir).join(Self::FILE))
     }
 
     fn file_content() -> Result<String> {
-        let f = Self::path()?;
-        match fs::read_to_string(f) {
-            Ok(s) => Ok(s.clone()),
-            Err(err) => Err(CliError::ReadFail { source: err }),
-        }
+        Ok(fs::read_to_string(Self::path()?)?)
     }
 
     fn mapping() -> Result<Mapping<Self>> {
         let content = Self::file_content()?;
-        match Crud::deserialize(content) {
-            Ok(map) => Ok(map),
-            Err(_) => Err(CliError::DeserializeFail),
-        }
+        let map = Crud::deserialize(content)?;
+        Ok(map)
     }
 
     fn commit_map(map: HashMap<String, Self>) -> Result<()> {
-        match Crud::serialize(map) {
-            Ok(s) => match fs::write(Self::path()?, s) {
-                Ok(_) => Ok(()),
-                Err(source) => Err(CliError::WriteFail { source }),
-            },
-            Err(_) => Err(CliError::SerializeFail),
-        }
+        let s = Crud::serialize(map)?;
+        fs::write(Self::path()?, s)?;
+        Ok(())
     }
 
     fn add(&self) -> Result<()> {
         let slug = self.identifier();
-        if Self::exists(&slug) {
-            Err(CliError::SlugExists { slug })
-        } else {
-            let mut mapping = Self::mapping()?;
-            mapping.insert(self.identifier(), self.clone());
-            Self::commit_map(mapping);
-            Ok(())
-        }
+        Self::write_ok(&slug, false)?;
+        let mut mapping = Self::mapping()?;
+        mapping.insert(self.identifier(), self.clone());
+        Self::commit_map(mapping)?;
+        Ok(())
     }
 
     fn delete(&self) -> Result<()> {
         let slug = self.identifier();
-        if Self::exists(&slug) {
-            let mut mapping = Self::mapping()?;
-            mapping.remove(&slug);
-            Ok(Self::commit_map(mapping)?)
-        } else {
-            Err(CliError::SlugMissing { slug })
-        }
+        Self::write_ok(&slug, true)?;
+        let mut mapping = Self::mapping()?;
+        mapping.remove(&slug);
+        Ok(Self::commit_map(mapping)?)
     }
 
     fn overwrite(&self) -> Result<()> {
         let slug = self.identifier();
-        if Self::exists(&slug) {
-            let mut mapping = Self::mapping()?;
-            mapping.remove(&slug);
-            mapping.insert(slug, self.clone());
-            Ok(Self::commit_map(mapping)?)
-        } else {
-            Err(CliError::SlugMissing { slug })
-        }
+        Self::write_ok(&slug, true)?;
+        let mut mapping = Self::mapping()?;
+        mapping.remove(&slug);
+        mapping.insert(slug, self.clone());
+        Ok(Self::commit_map(mapping)?)
     }
 
-    fn exists(slug: &str) -> bool {
-        match Self::mapping() {
-            Ok(map) => map.contains_key(slug),
-            Err(_) => false,
+    fn write_ok(slug: &str, slug_expect: bool) -> Result<()> {
+        let map = Self::mapping()?;
+        match (slug_expect, map.contains_key(slug)) {
+            (true, true) | (false, false) => Ok(()),
+            (x, _) => Err(CliError::Slug {
+                slug: slug.into(),
+                expect: x,
+            }),
         }
     }
 
