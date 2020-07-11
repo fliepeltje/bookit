@@ -11,7 +11,7 @@ use structopt::StructOpt;
 
 #[derive(Debug)]
 enum Directive {
-    Minutes(u8),
+    Minutes(u32),
     Hours(f32),
     Since(NaiveTime),
     Until(NaiveTime),
@@ -22,7 +22,7 @@ impl FromStr for Directive {
     fn from_str(input: &str) -> Result<Self> {
         let directive = input.get(..3);
         let arg = input.get(3..);
-        if directive.is_none() || arg.is_none() {
+        if input.contains("::") && (directive.is_none() || arg.is_none()) {
             Err(CliError::Directive {
                 input: input.into(),
                 context: "directive incomplete (use <directive>::<argument>)".into(),
@@ -40,15 +40,15 @@ impl FromStr for Directive {
                         ),
                     }),
                 },
-                "s::" => Ok(Directive::Since(parse_time(input)?)),
-                "t::" => Ok(Directive::Until(parse_time(input)?)),
+                "s::" => Ok(Directive::Since(parse_time(arg)?)),
+                "t::" => Ok(Directive::Until(parse_time(arg)?)),
                 _ => Err(CliError::Directive {
                     input: input.into(),
                     context: "Unknown directive".into(),
                 }),
             }
         } else {
-            match input.parse::<u8>() {
+            match input.parse::<u32>() {
                 Ok(minutes) => Ok(Directive::Minutes(minutes)),
                 Err(_) => Err(CliError::Directive {
                     input: input.into(),
@@ -59,13 +59,13 @@ impl FromStr for Directive {
     }
 }
 
-impl From<Directive> for u8 {
+impl From<Directive> for u32 {
     fn from(directive: Directive) -> Self {
         match directive {
             Directive::Minutes(m) => m,
-            Directive::Hours(h) => (60.0 * h) as u8,
-            Directive::Since(t) => (LocalTime::now().naive_local().time() - t).num_minutes() as u8,
-            Directive::Until(t) => (t - LocalTime::now().naive_local().time()).num_minutes() as u8,
+            Directive::Hours(h) => (60.0 * h) as u32,
+            Directive::Since(t) => (LocalTime::now().naive_local().time() - t).num_minutes() as u32,
+            Directive::Until(t) => (t - LocalTime::now().naive_local().time()).num_minutes() as u32,
         }
     }
 }
