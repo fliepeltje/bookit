@@ -1,21 +1,17 @@
 use crate::errors::CliError;
 use crate::generics::{add_subject, Result, View};
 use crate::hours::HourLog;
-use crate::utils::parse_time;
+use crate::utils::{parse_date as util_date, parse_time};
 use chrono::offset::Local as LocalTime;
-use chrono::{Datelike, NaiveDate, NaiveTime, Timelike, Weekday};
+use chrono::{NaiveDate, NaiveTime};
 use harsh::Harsh;
+use std::convert::TryFrom;
 use std::str::FromStr;
 use structopt::StructOpt;
 
-#[derive(Debug, PartialEq)]
-enum TimeArg {
-    Minutes(u8),
-    Hours(f32),
-    Stretch(NaiveTime, NaiveTime),
-}
-
+#[derive(Debug)]
 enum Directive {
+    Minutes(u8),
     Hours(f32),
     Since(NaiveTime),
     Until(NaiveTime),
@@ -31,7 +27,7 @@ impl FromStr for Directive {
                 input: input.into(),
                 context: "directive incomplete (use <directive>::<argument>)".into(),
             })
-        } else {
+        } else if input.contains("::") {
             let directive = directive.unwrap();
             let arg = arg.unwrap();
             match directive {
@@ -51,25 +47,9 @@ impl FromStr for Directive {
                     context: "Unknown directive".into(),
                 }),
             }
-        }
-    }
-}
-type DateArgError = String;
-
-impl FromStr for TimeArg {
-    type Err = CliError;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        if input.contains("::") {
-            let directive = Directive::from_str(input)?;
-            match directive {
-                Directive::Hours(x) => Ok(Self::Hours(x)),
-                Directive::Since(t) => Ok(Self::Stretch(t, LocalTime::now().naive_local().time())),
-                Directive::Until(t) => Ok(Self::Stretch(LocalTime::now().naive_local().time(), t)),
-            }
         } else {
             match input.parse::<u8>() {
-                Ok(minutes) => Ok(Self::Minutes(minutes)),
+                Ok(minutes) => Ok(Directive::Minutes(minutes)),
                 Err(_) => Err(CliError::Directive {
                     input: input.into(),
                     context: "not a valid integer (e.g. 60)".into(),
@@ -79,67 +59,13 @@ impl FromStr for TimeArg {
     }
 }
 
-impl From<TimeArg> for u8 {
-    fn from(time: TimeArg) -> Self {
-        match time {
-            TimeArg::Minutes(m) => m,
-            TimeArg::Hours(h) => (60.0 * h) as u8,
-            TimeArg::Stretch(f, l) => {
-                let l_min = (l.hour() * 60) + l.minute();
-                let f_min = (f.hour() * 60) + f.minute();
-                let duration = l_min - f_min;
-                duration as u8
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum DateArg {
-    Today,
-    Yesterday,
-    Weekday(Weekday),
-    Date(NaiveDate),
-}
-
-impl FromStr for DateArg {
-    type Err = DateArgError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let input: String = s.to_lowercase();
-        let is_date_notation = input.contains("-");
-        match (input.as_ref(), is_date_notation) {
-            ("today", false) => Ok(Self::Today),
-            ("yesterday", false) => Ok(Self::Yesterday),
-            (day, false) => match day.parse::<Weekday>() {
-                Ok(day) => Ok(Self::Weekday(day)),
-                Err(_) => Err("invalid weekday".into()),
-            },
-            (date, true) => match NaiveDate::parse_from_str(date, "%Y-%m-%d") {
-                Ok(date) => Ok(DateArg::Date(date)),
-                Err(ctx) => Err(format!("{} is an invalid date", ctx)),
-            },
-        }
-    }
-}
-
-impl From<DateArg> for NaiveDate {
-    fn from(arg: DateArg) -> Self {
-        let now = LocalTime::now().naive_utc();
-        let today = now.date();
-        match arg {
-            DateArg::Today => today,
-            DateArg::Yesterday => today.pred(),
-            DateArg::Date(date) => date,
-            DateArg::Weekday(day) => {
-                let current_day = today.weekday();
-                let current_week = today.iso_week().week();
-                if current_day.num_days_from_monday() > day.num_days_from_monday() {
-                    NaiveDate::from_isoywd(today.year(), current_week, day)
-                } else {
-                    NaiveDate::from_isoywd(today.year(), current_week - 1, day)
-                }
-            }
+impl From<Directive> for u8 {
+    fn from(directive: Directive) -> Self {
+        match directive {
+            Directive::Minutes(m) => m,
+            Directive::Hours(h) => (60.0 * h) as u8,
+            Directive::Since(t) => (LocalTime::now().naive_local().time() - t).num_minutes() as u8,
+            Directive::Until(t) => (t - LocalTime::now().naive_local().time()).num_minutes() as u8,
         }
     }
 }
@@ -149,10 +75,10 @@ pub struct BookingArgs {
     /// Project alias
     alias: String,
     /// Time in minutes or a stretch pattern (e.g. <int> | h::<f64> | <s or t>::HH:MM | s::last)
-    time: TimeArg,
+    time: Directive,
     /// Date in isoformat or weekday (e.g. "YYYY-MM-DD" | <weekday>)
-    #[structopt(short = "d", long = "date", default_value = "today")]
-    date: DateArg,
+    #[structopt(short = "d", long = "date", default_value = "today", parse(try_from_str = util_date))]
+    date: NaiveDate,
     /// Description of time expenditure (must pass spelling check)
     #[structopt(short = "m", long = "message")]
     message: Option<String>,
@@ -164,77 +90,32 @@ pub struct BookingArgs {
     branch: Option<String>,
 }
 
-impl From<BookingArgs> for HourLog {
-    fn from(args: BookingArgs) -> Self {
+impl TryFrom<BookingArgs> for HourLog {
+    type Error = CliError;
+
+    fn try_from(args: BookingArgs) -> Result<Self> {
         let now = LocalTime::now().naive_local();
         let encoder = Harsh::builder()
             .salt("bookit")
             .build()
             .expect("could not create encoder");
         let timestamp = now.timestamp();
-        Self {
+        Ok(Self {
             alias: args.alias,
             minutes: args.time.into(),
-            date: args.date.into(),
+            date: args.date,
             message: args.message,
             ticket: args.ticket,
             branch: args.branch,
             id: encoder.encode(&[timestamp as u64]).to_lowercase(),
-            timestamp: LocalTime::now().naive_utc(),
-        }
+            timestamp: LocalTime::now().naive_local(),
+        })
     }
 }
 
 pub fn exec_cmd_book(args: BookingArgs) -> Result<()> {
-    let hours: HourLog = args.into();
+    let hours = HourLog::try_from(args)?;
     add_subject(hours.clone())?;
     println!("{}", hours.format_list_item());
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use proptest::prelude::*;
-
-    #[test]
-    fn time_parser_ok() {
-        assert!(TimeArg::from_str("s::last").is_ok());
-        assert!(TimeArg::from_str("s::08:00").is_ok());
-        assert!(TimeArg::from_str("h::1.5").is_ok());
-        assert!(TimeArg::from_str("60").is_ok());
-    }
-    #[test]
-    fn time_parser_err() {
-        assert!(TimeArg::from_str("::lasts").is_err());
-        assert!(TimeArg::from_str("::08").is_err());
-        assert!(TimeArg::from_str("::08:00a").is_err());
-        assert!(TimeArg::from_str("").is_err());
-        assert!(TimeArg::from_str("abc").is_err());
-    }
-
-    #[test]
-    fn date_parser_ok() {
-        assert!(DateArg::from_str("yesterday").is_ok());
-        assert!(DateArg::from_str("Yesterday").is_ok());
-        assert!(DateArg::from_str("2020-04-20").is_ok());
-        assert!(DateArg::from_str("mon").is_ok());
-        assert!(DateArg::from_str("monday").is_ok());
-        assert!(DateArg::from_str("Monday").is_ok());
-    }
-
-    #[test]
-    fn date_parser_err() {
-        assert!(DateArg::from_str("yesterdy").is_err());
-        assert!(DateArg::from_str("2020-04-200").is_err());
-        assert!(DateArg::from_str("man").is_err());
-    }
-
-    proptest! {
-        #[test]
-        fn can_parse_valid_date_pattern(y in 1i32..10000, m in 1u32..13, d in 1u32..28) {
-            let s = NaiveDate::from_ymd(y, m, d).to_string();
-            assert!(DateArg::from_str(&s).is_ok(), "Fail at {}", s);
-        }
-    }
 }
