@@ -10,6 +10,8 @@ pub enum CliError {
     Write(std::io::Error),
     Serialization(String),
     Env(String, VarError),
+    Directive { input: String, context: String },
+    Parse { input: String, description: String },
 }
 
 impl Error for CliError {}
@@ -62,6 +64,20 @@ impl std::fmt::Display for CliError {
                 write!(f, "{} {}", error_descriptor("Data Transformation"), msg)
             }
             Self::Read(e) | Self::Write(e) => write!(f, "{} {}", error_descriptor("IO"), e),
+            Self::Directive { input, context } => write!(
+                f,
+                "{} {} {}",
+                error_descriptor("Directive"),
+                input.yellow(),
+                context
+            ),
+            Self::Parse { input, description } => write!(
+                f,
+                "{} unable to parse {} - {}",
+                error_descriptor("Parse"),
+                input.yellow(),
+                description
+            ),
         }
     }
 }
