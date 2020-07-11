@@ -1,3 +1,5 @@
+use crate::contractors::Contractor;
+use crate::errors::CliError;
 use crate::generics::{
     add_subject, delete_subject, update_subject, view_subject, Crud, Result, View,
 };
@@ -7,12 +9,13 @@ use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use structopt::StructOpt;
 use toml::{from_str as from_toml, to_string as to_toml};
 
 pub fn exec_cmd_alias(args: AliasArgs) -> Result<()> {
     match (args.action, args.slug) {
-        (Action::Add, None) => add_subject(Alias::new())?,
+        (Action::Add, None) => add_subject(Alias::new()?)?,
         (Action::Delete, Some(slug)) => delete_subject::<Alias>(&slug)?,
         (Action::Update, Some(slug)) => update_subject::<Alias>(&slug)?,
         (Action::View, maybe_slug) => view_subject::<Alias>(maybe_slug)?,
@@ -75,6 +78,14 @@ impl Crud<'_> for Alias {
     }
 }
 
+impl FromStr for Alias {
+    type Err = CliError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(Self::retrieve(s)?)
+    }
+}
+
 impl View for Alias {
     fn format_list_item(&self) -> String {
         format!(
@@ -88,19 +99,21 @@ impl View for Alias {
 }
 
 impl Alias {
-    fn new() -> Self {
+    fn new() -> Result<Self> {
         let slug = input::<String>()
             .msg("Alias: ")
             .add_test(|x| *x == slugify(x.into()))
             .get();
         let contractor = input::<String>().msg("Contractor slug: ").get();
+        let contractor = Contractor::from_str(&contractor)?;
+        let contractor = contractor.slug;
         let short_description = input::<String>().msg("Brief description: ").get();
         let hourly_rate = input::<u8>().msg("Hourly rate: ").get();
-        Self {
+        Ok(Self {
             slug,
             contractor,
             short_description,
             hourly_rate,
-        }
+        })
     }
 }

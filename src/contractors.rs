@@ -1,3 +1,4 @@
+use crate::errors::CliError;
 use crate::generics::{
     add_subject, delete_subject, update_subject, view_subject, Crud, Result, View,
 };
@@ -7,6 +8,7 @@ use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use structopt::StructOpt;
 use toml::{from_str as from_toml, to_string as to_toml};
 
@@ -67,6 +69,14 @@ impl View for Contractor {
             self.slug.bold().red(),
             self.name.bold().blue()
         )
+    }
+}
+
+impl FromStr for Contractor {
+    type Err = CliError;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(Self::retrieve(s)?)
     }
 }
 
