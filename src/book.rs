@@ -1,5 +1,7 @@
+use crate::errors::CliError;
 use crate::generics::{add_subject, Result, View};
 use crate::hours::HourLog;
+use crate::utils::parse_time;
 use chrono::offset::Local as LocalTime;
 use chrono::{Datelike, NaiveDate, NaiveTime, Timelike, Weekday};
 use harsh::Harsh;
@@ -13,41 +15,65 @@ enum TimeArg {
     Stretch(NaiveTime, NaiveTime),
 }
 
-type TimeArgError = String;
+enum Directive {
+    Hours(f32),
+    Since(NaiveTime),
+    Until(NaiveTime),
+}
+
+impl FromStr for Directive {
+    type Err = CliError;
+    fn from_str(input: &str) -> Result<Self> {
+        let directive = input.get(..3);
+        let arg = input.get(3..);
+        if directive.is_none() || arg.is_none() {
+            Err(CliError::Directive {
+                input: input.into(),
+                context: "directive incomplete (use <directive>::<argument>)".into(),
+            })
+        } else {
+            let directive = directive.unwrap();
+            let arg = arg.unwrap();
+            match directive {
+                "h::" => match arg.parse::<f32>() {
+                    Ok(h) => Ok(Self::Hours(h)),
+                    Err(_) => Err(CliError::Parse {
+                        input: input.into(),
+                        description: format!(
+                            "value should be an integer or a floating point number"
+                        ),
+                    }),
+                },
+                "s::" => Ok(Directive::Since(parse_time(input)?)),
+                "t::" => Ok(Directive::Until(parse_time(input)?)),
+                _ => Err(CliError::Directive {
+                    input: input.into(),
+                    context: "Unknown directive".into(),
+                }),
+            }
+        }
+    }
+}
 type DateArgError = String;
 
 impl FromStr for TimeArg {
-    type Err = TimeArgError;
+    type Err = CliError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.contains("::") {
-            match (s.get(..1), s.get(3..)) {
-                (Some("h"), Some(hours)) => match hours.parse::<f32>() {
-                    Ok(h) => Ok(Self::Hours(h)),
-                    Err(ctx) => Err(format!("{}", ctx)),
-                },
-                (Some(s), Some(stretch)) if s == "s" || s == "t" => {
-                    let now = LocalTime::now().naive_local().time();
-                    if stretch == "last" {
-                        Ok(Self::Stretch(now, now))
-                    } else {
-                        let fmt_time = format!("{}:00", stretch);
-                        let time = NaiveTime::from_str(&fmt_time).expect("");
-                        match s {
-                            "s" => Ok(Self::Stretch(time, now)),
-                            "t" => Ok(Self::Stretch(now, time)),
-                            _ => Err("unknown stretch directive".into()),
-                        }
-                    }
-                }
-                (Some(":"), _) => Err("missing directive".into()),
-                (Some(s), _) => Err(format!("unknown directive {}", s)),
-                (None, _) => Err("missing time argument".into()),
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        if input.contains("::") {
+            let directive = Directive::from_str(input)?;
+            match directive {
+                Directive::Hours(x) => Ok(Self::Hours(x)),
+                Directive::Since(t) => Ok(Self::Stretch(t, LocalTime::now().naive_local().time())),
+                Directive::Until(t) => Ok(Self::Stretch(LocalTime::now().naive_local().time(), t)),
             }
         } else {
-            match s.parse::<u8>() {
+            match input.parse::<u8>() {
                 Ok(minutes) => Ok(Self::Minutes(minutes)),
-                Err(ctx) => Err(format!("{}", ctx)),
+                Err(_) => Err(CliError::Directive {
+                    input: input.into(),
+                    context: "not a valid integer (e.g. 60)".into(),
+                }),
             }
         }
     }
