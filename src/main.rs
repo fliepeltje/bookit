@@ -30,9 +30,7 @@ impl std::str::FromStr for Action {
             "update" => Ok(Self::Update),
             "delete" => Ok(Self::Delete),
             "view" => Ok(Self::View),
-            action => Err(CliError::UnknownAction {
-                action_input: action.into(),
-            }),
+            action => Err(CliError::UnknownAction(action.to_string())),
         }
     }
 }
@@ -65,12 +63,15 @@ enum Opt {
     Contractors(ContractorArgs),
 }
 
-fn main() -> Result<()> {
-    match Opt::from_args() {
-        Opt::Book(args) => exec_cmd_book(args)?,
-        Opt::Alias(args) => exec_cmd_alias(args)?,
-        Opt::Contractors(args) => exec_cmd_contractor(args)?,
-        Opt::Hours(args) => exec_cmd_hours(args)?,
+fn main() -> () {
+    let r = match Opt::from_args() {
+        Opt::Book(args) => exec_cmd_book(args),
+        Opt::Alias(args) => exec_cmd_alias(args),
+        Opt::Contractors(args) => exec_cmd_contractor(args),
+        Opt::Hours(args) => exec_cmd_hours(args),
     };
-    Ok(())
+    match r {
+        Ok(_) => (),
+        Err(e) => println!("{}", e),
+    }
 }
