@@ -4,7 +4,6 @@ use chrono::{NaiveDate, NaiveDateTime};
 use colored::*;
 use serde::{Deserialize, Serialize};
 use serde_json::de::from_str as from_json;
-use serde_json::error::Error as JsonError;
 use serde_json::ser::to_string as to_json;
 use std::collections::HashMap;
 use structopt::StructOpt;
@@ -65,19 +64,17 @@ impl View for HourLog {
 
 impl Crud<'_> for HourLog {
     const FILE: &'static str = "hourstest.json";
-    type SerializeErr = JsonError;
-    type DeserializeErr = JsonError;
 
     fn identifier(&self) -> String {
         self.id.clone()
     }
 
-    fn deserialize(s: String) -> Result<HashMap<String, Self>, Self::DeserializeErr> {
-        from_json(&s)
+    fn deserialize(s: String) -> Result<HashMap<String, Self>> {
+        Ok(from_json(&s)?)
     }
 
-    fn serialize(map: HashMap<String, Self>) -> Result<String, Self::SerializeErr> {
-        to_json(&map)
+    fn serialize(map: HashMap<String, Self>) -> Result<String> {
+        Ok(to_json(&map)?)
     }
 
     fn interactive_update(&self) -> Self {
