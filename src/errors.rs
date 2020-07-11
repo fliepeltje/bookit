@@ -3,24 +3,26 @@ use std::env::VarError;
 
 #[derive(Debug, Snafu)]
 pub enum CliError {
-    #[snafu(display(
-        "{} is not a valid action. Try: add | view | update | delete",
-        action_input
-    ))]
     UnknownAction { action_input: String },
-
-    #[snafu(display("{} could not be found in the current environment", var))]
-    MissingEnvVar { var: String, source: VarError },
-    #[snafu(display("unable to read from file {}", source))]
-    ReadFail { source: std::io::Error },
-    #[snafu(display("unable to write content to file {}", source))]
-    WriteFail { source: std::io::Error },
-    #[snafu(display("unable to deserialize file content"))]
-    DeserializeFail,
-    #[snafu(display("unable to serialize struct"))]
-    SerializeFail,
-    #[snafu(display("object with slug {} already exists", slug))]
+    MissingEnvVar { msg: String },
     SlugExists { slug: String },
-    #[snafu(display("object with slug {} doesn't exist", slug))]
     SlugMissing { slug: String },
+    Slug { slug: String, expect: bool },
+    IO { msg: String },
+}
+
+impl From<VarError> for CliError {
+    fn from(err: VarError) -> Self {
+        Self::MissingEnvVar {
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<std::io::Error> for CliError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IO {
+            msg: err.to_string(),
+        }
+    }
 }
