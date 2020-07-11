@@ -8,6 +8,7 @@ use crate::Action;
 use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -38,6 +39,7 @@ pub struct Alias {
     pub contractor: String,
     pub short_description: String,
     pub hourly_rate: u8,
+    pub metadata: Option<HashMap<String, Value>>,
 }
 
 impl Crud<'_> for Alias {
@@ -69,11 +71,13 @@ impl Crud<'_> for Alias {
             .msg(format!("Hourly rate: [{}]", self.hourly_rate))
             .default(self.hourly_rate)
             .get();
+        let metadata = self.metadata.clone();
         Self {
             slug,
             contractor,
             short_description,
             hourly_rate,
+            metadata,
         }
     }
 }
@@ -109,11 +113,13 @@ impl Alias {
         let contractor = contractor.slug;
         let short_description = input::<String>().msg("Brief description: ").get();
         let hourly_rate = input::<u8>().msg("Hourly rate: ").get();
+        let metadata = None;
         Ok(Self {
             slug,
             contractor,
             short_description,
             hourly_rate,
+            metadata,
         })
     }
 }

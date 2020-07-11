@@ -7,6 +7,7 @@ use crate::Action;
 use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -35,6 +36,7 @@ pub struct ContractorArgs {
 pub struct Contractor {
     pub slug: String,
     pub name: String,
+    pub metadata: Option<HashMap<String, Value>>,
 }
 
 impl Crud<'_> for Contractor {
@@ -58,7 +60,12 @@ impl Crud<'_> for Contractor {
             .default(self.name.clone())
             .get();
         let slug = self.slug.clone();
-        Self { name, slug }
+        let metadata = self.metadata.clone();
+        Self {
+            name,
+            slug,
+            metadata,
+        }
     }
 }
 
@@ -93,6 +100,11 @@ impl Contractor {
             .msg(slug_msg)
             .default(slug)
             .get();
-        Self { slug, name }
+        let metadata = None;
+        Self {
+            slug,
+            name,
+            metadata,
+        }
     }
 }
