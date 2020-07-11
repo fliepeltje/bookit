@@ -37,19 +37,17 @@ pub struct Contractor {
 
 impl Crud<'_> for Contractor {
     const FILE: &'static str = "contractors_test.toml";
-    type DeserializeErr = toml::de::Error;
-    type SerializeErr = toml::ser::Error;
 
     fn identifier(&self) -> String {
         self.slug.to_owned()
     }
 
-    fn deserialize(tomlstr: String) -> Result<HashMap<String, Contractor>, Self::DeserializeErr> {
-        from_toml(&tomlstr)
+    fn deserialize(tomlstr: String) -> Result<HashMap<String, Contractor>> {
+        Ok(from_toml(&tomlstr)?)
     }
 
-    fn serialize(map: HashMap<String, Contractor>) -> Result<String, Self::SerializeErr> {
-        to_toml(&map)
+    fn serialize(map: HashMap<String, Contractor>) -> Result<String> {
+        Ok(to_toml(&map)?)
     }
 
     fn interactive_update(&self) -> Self {
