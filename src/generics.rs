@@ -89,11 +89,15 @@ where
         let mapping = Self::mapping()?;
         match mapping.get(slug) {
             Some(obj) => Ok(obj.clone()),
-            None => Err(CliError::Slug {
+            None => Err(CliError::SlugNotFound {
                 slug: slug.to_owned(),
-                expect: true,
+                existing: Self::available_slugs(mapping),
             }),
         }
+    }
+
+    fn available_slugs(mapping: Mapping<Self>) -> Vec<String> {
+        mapping.keys().cloned().collect()
     }
 }
 
