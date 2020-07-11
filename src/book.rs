@@ -161,7 +161,7 @@ impl From<BookingArgs> for HourLog {
 
 pub fn exec_cmd_book(args: BookingArgs) -> Result<()> {
     let hours: HourLog = args.into();
-    add_subject(hours.clone());
+    add_subject(hours.clone())?;
     println!("{}", hours.format_list_item());
     Ok(())
 }
