@@ -15,6 +15,8 @@ pub enum CliError {
     SlugNotFound { slug: String, existing: Vec<String> },
     FilterNoResults,
     InvalidSortQuery { input: String },
+    CmdError(String),
+    BinaryError(&str),
 }
 
 impl Error for CliError {}
@@ -98,6 +100,8 @@ impl std::fmt::Display for CliError {
             ),
             Self::FilterNoResults => write!(f, "no results"),
             Self::InvalidSortQuery { input } => write!(f, "no sort"),
+            Self::CmdError(msg) => write!(f, "noo"),
+            Self::BinaryError(msg) => write!(f, "yess"),
         }
     }
 }

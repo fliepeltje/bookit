@@ -1,34 +1,54 @@
+use crate::alias::Alias;
 use crate::errors::CliError;
 use crate::generics::{
-    delete_subject, view_filtered_set, view_subject, Crud, Filter, Result, View,
+    add_subject, delete_subject, view_filtered_set, view_subject, Crud, Filter, Result, View,
 };
-use crate::Action;
-use chrono::{NaiveDate, NaiveDateTime};
+use crate::utils::parse_date;
+use crate::utils::parse_time;
+use chrono::{Local, NaiveDate, NaiveDateTime};
 use colored::*;
+use harsh::Harsh;
 use serde::{Deserialize, Serialize};
 use serde_json::de::from_str as from_json;
 use serde_json::ser::to_string as to_json;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::str::FromStr;
 use structopt::StructOpt;
 
-pub fn exec_cmd_hours(args: HourLogArgs) -> Result<()> {
-    match (args.action, args.slug) {
-        (Action::View, slug) => view_subject::<HourLog>(slug)?,
-        (Action::Delete, Some(slug)) => delete_subject::<HourLog>(&slug)?,
-        (Action::Delete, None) => println!("delete requires a slug to be specified"),
-        (action, _) => println!(
-            "{} is not a valid action for this object",
-            action.to_string().bold()
-        ),
-    };
-    Ok(())
+#[derive(Debug)]
+enum CmdError {
+    NoHours,
+    NoTime,
+    Hasher,
+    InvalidHours(String),
+    InvalidMinutes(String),
+    InvalidTime(String),
 }
 
-#[derive(StructOpt, Debug)]
-pub struct HourLogArgs {
-    pub action: Action,
-    pub slug: Option<String>,
+impl From<CmdError> for CliError {
+    fn from(err: CmdError) -> CliError {
+        match err {
+            CmdError::Hasher => {
+                CliError::BinaryError("Unable to initialize hash function".to_string())
+            }
+            CmdError::NoTime => CliError::CmdError(
+                "No time specified after directive (use '<s | t>::08:00'".to_string(),
+            ),
+            CmdError::NoHours => CliError::CmdError("No hours specified (use 'h:1.5')".to_string()),
+            CmdError::InvalidHours(h) => CliError::CmdError(format!(
+                "could not parse hours {} (use a float or integer)",
+                h.yellow().bold()
+            )),
+            CmdError::InvalidMinutes(m) => CliError::CmdError(format!(
+                "could not parse minutes {} (use an integer)",
+                m.yellow().bold()
+            )),
+            CmdError::InvalidTime(t) => {
+                CliError::CmdError(format!("unable to interpret time: {}", t.yellow().bold()))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -41,6 +61,26 @@ pub struct HourLog {
     pub branch: Option<String>,
     pub id: String,
     pub timestamp: NaiveDateTime,
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub struct CreateArgs {
+    alias: Alias,
+    /// Time in minutes or a stretch pattern (e.g. <int> | h::<f64> | <s or t>::HH:MM | s::last)
+    #[structopt(name="time", parse(try_from_str = interpret_time))]
+    time: u32,
+    /// Date in isoformat or weekday (e.g. "YYYY-MM-DD" | <weekday>)
+    #[structopt(short = "d", long = "date", default_value = "today", parse(try_from_str = parse_date))]
+    date: NaiveDate,
+    /// Description of time expenditure (must pass spelling check)
+    #[structopt(short = "m", long = "message")]
+    message: Option<String>,
+    /// Reference to work ticket (e.g. "RAS-002")
+    #[structopt(short = "t", long = "ticket")]
+    ticket: Option<String>,
+    /// Reference to git branch for work (e.g. "feature/RAS-002")
+    #[structopt(short = "b", long = "branch")]
+    branch: Option<String>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -59,6 +99,52 @@ pub enum Cmd {
     /// Delete an hour booking by hash
     #[structopt(name = "delete")]
     Delete { slug: String },
+    /// Add an hour booking
+    #[structopt(name = "book")]
+    Create(CreateArgs),
+}
+
+fn interpret_time(time_str: &str) -> Result<u32> {
+    let res = match time_str {
+        time_str if time_str.starts_with("h::") => {
+            if let Some(maybe_h) = time_str.get(3..) {
+                match maybe_h.parse::<f32>() {
+                    Ok(h) => Ok((60.0 * h) as u32),
+                    Err(_) => Err(CmdError::InvalidHours(maybe_h.to_owned())),
+                }
+            } else {
+                Err(CmdError::NoHours)
+            }
+        }
+        time_str if time_str.starts_with("s::") => {
+            if let Some(maybe_t) = time_str.get(3..) {
+                let t = parse_time(maybe_t)?;
+                Ok((Local::now().naive_local().time() - t).num_minutes() as u32)
+            } else {
+                Err(CmdError::NoTime)
+            }
+        }
+        time_str if time_str.starts_with("t::") => {
+            if let Some(maybe_t) = time_str.get(3..) {
+                let t = parse_time(maybe_t)?;
+                Ok((t - Local::now().naive_local().time()).num_minutes() as u32)
+            } else {
+                Err(CmdError::NoTime)
+            }
+        }
+        time_str if !time_str.contains("::") => {
+            if let Ok(minutes) = time_str.parse::<u32>() {
+                Ok(minutes)
+            } else {
+                Err(CmdError::InvalidMinutes(time_str.to_owned()))
+            }
+        }
+        time_str => Err(CmdError::InvalidTime(time_str.to_owned())),
+    };
+    match res {
+        Ok(res) => Ok(res),
+        Err(err) => Err(err.into()),
+    }
 }
 
 impl Cmd {
@@ -70,8 +156,33 @@ impl Cmd {
                 let sort = sort.clone();
                 view_filtered_set::<HourLog, F, S>(filters.to_vec(), sort)?
             }
+            Self::Create(args) => add_subject::<HourLog>(HourLog::try_from(args.clone())?)?,
         };
         Ok(())
+    }
+}
+
+impl TryFrom<CreateArgs> for HourLog {
+    type Error = CliError;
+
+    fn try_from(args: CreateArgs) -> Result<Self> {
+        let now = Local::now().naive_local();
+        let encoder = Harsh::builder()
+            .salt("bookit")
+            .build()
+            .or(Err(CmdError::Hasher))?;
+        let hash = encoder.encode(&[now.timestamp() as u64]).to_lowercase();
+        let hours = Self {
+            alias: args.alias.slug,
+            minutes: args.time,
+            date: args.date,
+            message: args.message,
+            ticket: args.ticket,
+            branch: args.branch,
+            id: hash,
+            timestamp: now,
+        };
+        Ok(hours)
     }
 }
 
@@ -119,7 +230,7 @@ impl Crud<'_> for HourLog {
 }
 
 #[derive(Clone, Debug)]
-enum F {
+pub enum F {
     NoFilter,
     ByAlias(String),
 }
@@ -150,7 +261,7 @@ impl FromStr for F {
 }
 
 #[derive(Clone, Debug)]
-enum S {
+pub enum S {
     NoSort,
     ByTimestamp,
 }
