@@ -4,7 +4,6 @@ mod errors;
 mod generics;
 mod hours;
 mod utils;
-use alias::{exec_cmd_alias, AliasArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
 use errors::CliError;
 use generics::Result;
@@ -50,7 +49,7 @@ impl std::string::ToString for Action {
 enum Opt {
     /// Manage aliases
     #[structopt(name = "alias")]
-    Alias(AliasArgs),
+    Alias(alias::Cmd),
     /// Manage contractors
     #[structopt(name = "contractors")]
     Contractors(ContractorArgs),
@@ -61,7 +60,7 @@ enum Opt {
 
 fn main() -> () {
     let r = match Opt::from_args() {
-        Opt::Alias(args) => exec_cmd_alias(args),
+        Opt::Alias(cmd) => cmd.exec(),
         Opt::Contractors(args) => exec_cmd_contractor(args),
         Opt::Hours(cmd) => cmd.exec(),
     };

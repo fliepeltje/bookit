@@ -16,7 +16,7 @@ pub enum CliError {
     FilterNoResults,
     InvalidSortQuery { input: String },
     CmdError(String),
-    BinaryError(&str),
+    BinaryError(String),
 }
 
 impl Error for CliError {}

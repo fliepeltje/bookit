@@ -1,10 +1,10 @@
 use crate::contractors::Contractor;
 use crate::errors::CliError;
 use crate::generics::{
-    add_subject, delete_subject, update_subject, view_subject, Crud, Result, View,
+    add_subject, delete_subject, update_subject, view_filtered_set, view_subject, Crud, Filter,
+    Result, View,
 };
-use crate::utils::slugify;
-use crate::Action;
+use crate::utils::{partition_directive, slugify};
 use colored::*;
 use read_input::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -13,23 +13,18 @@ use std::str::FromStr;
 use structopt::StructOpt;
 use toml::{from_str as from_toml, to_string as to_toml};
 
-pub fn exec_cmd_alias(args: AliasArgs) -> Result<()> {
-    match (args.action, args.slug) {
-        (Action::Add, None) => add_subject(Alias::new()?)?,
-        (Action::Delete, Some(slug)) => delete_subject::<Alias>(&slug)?,
-        (Action::Update, Some(slug)) => update_subject::<Alias>(&slug)?,
-        (Action::View, maybe_slug) => view_subject::<Alias>(maybe_slug)?,
-        (Action::Add, Some(_)) => println!("The add action does not require a slug"),
-        (action, None) => println!("{} requires a slug", action.to_string().bold()),
-    };
-    Ok(())
+enum AliasError {
+    InvalidFilterField(String),
 }
 
-#[derive(StructOpt, Debug)]
-pub struct AliasArgs {
-    /// Type of operation to perform
-    action: Action,
-    slug: Option<String>,
+impl From<AliasError> for CliError {
+    fn from(err: AliasError) -> Self {
+        match err {
+            AliasError::InvalidFilterField(f) => {
+                Self::CmdError(format!("cannot filter on {}", f.yellow().bold()))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -38,6 +33,45 @@ pub struct Alias {
     pub contractor: String,
     pub short_description: String,
     pub hourly_rate: u8,
+}
+
+#[derive(StructOpt, Debug)]
+pub enum Cmd {
+    /// Create a new alias interactively
+    #[structopt(name = "add")]
+    Create,
+    /// Update an existing alias interactively
+    #[structopt(name = "update")]
+    Update { alias: Alias },
+    /// View a collection of aliases
+    #[structopt(name = "show")]
+    Show {
+        #[structopt(short = "f")]
+        filters: Vec<F>,
+        #[structopt(short = "s", default_value = "no_sort")]
+        sort: S,
+    },
+    /// View detailed alias stats
+    #[structopt(name = "detail")]
+    Detail { alias: Alias },
+    /// Delete an alias
+    #[structopt(name = "delete")]
+    Delete { alias: Alias },
+}
+
+impl Cmd {
+    pub fn exec(&self) -> Result<()> {
+        match self {
+            Self::Create => add_subject(Alias::new()?)?,
+            Self::Delete { alias } => delete_subject::<Alias>(&alias.slug)?,
+            Self::Update { alias } => update_subject::<Alias>(&alias.slug)?,
+            Self::Detail { alias } => view_subject::<Alias>(Some(alias.slug.clone()))?,
+            Self::Show { filters, sort } => {
+                view_filtered_set::<Alias, F, S>(filters.to_vec(), sort.clone())?
+            }
+        };
+        Ok(())
+    }
 }
 
 impl Crud<'_> for Alias {
@@ -115,5 +149,59 @@ impl Alias {
             short_description,
             hourly_rate,
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum F {
+    NoFilter,
+    Contractor(String),
+}
+
+impl FromStr for F {
+    type Err = CliError;
+
+    fn from_str(input: &str) -> Result<Self> {
+        match partition_directive(input)? {
+            ("contract", val) => Ok(Self::Contractor(val.to_string())),
+            (field, _) => Err(AliasError::InvalidFilterField(field.to_owned()).into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum S {
+    NoSort,
+}
+
+impl FromStr for S {
+    type Err = CliError;
+
+    fn from_str(input: &str) -> Result<Self> {
+        Ok(Self::NoSort)
+    }
+}
+
+impl Filter<F, S> for Alias {
+    const DEFAULT_SORT: S = S::NoSort;
+    const DEFAULT_FILTER: F = F::NoFilter;
+
+    fn get_base_items() -> Result<Vec<Self>> {
+        let mapping = Self::mapping()?;
+        Ok(mapping.values().cloned().collect::<Vec<Self>>())
+    }
+
+    fn filter(items: Vec<Self>, method: F) -> Vec<Self> {
+        match method {
+            F::NoFilter => items,
+            F::Contractor(contractor) => items
+                .into_iter()
+                .filter(|item| item.contractor == contractor)
+                .collect(),
+        }
+    }
+
+    fn sort(items: Vec<Self>, method: S) -> Vec<Self> {
+        items
     }
 }
