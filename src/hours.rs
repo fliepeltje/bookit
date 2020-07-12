@@ -24,6 +24,9 @@ enum CmdError {
     InvalidHours(String),
     InvalidMinutes(String),
     InvalidTime(String),
+    InvalidFilterField(String),
+    InvalidSort(String),
+    InvalidFilterExpr(String),
 }
 
 impl From<CmdError> for CliError {
@@ -47,6 +50,16 @@ impl From<CmdError> for CliError {
             CmdError::InvalidTime(t) => {
                 CliError::CmdError(format!("unable to interpret time: {}", t.yellow().bold()))
             }
+            CmdError::InvalidFilterField(f) => {
+                CliError::CmdError(format!("cannot filter on {}", f.yellow().bold()))
+            }
+            CmdError::InvalidSort(s) => {
+                CliError::CmdError(format!("cannot sort on {}", s.yellow().bold()))
+            }
+            CmdError::InvalidFilterExpr(expr) => CliError::CmdError(format!(
+                "unable to interpret filter expression {} (use <field>::<value>)",
+                expr.yellow().bold()
+            )),
         }
     }
 }
@@ -243,19 +256,16 @@ impl FromStr for F {
             "nofilter" => Ok(Self::NoFilter),
             input if input.starts_with("alias::") => match input.get(7..) {
                 Some(alias) => Ok(Self::ByAlias(alias.into())),
-                None => Err(CliError::Directive {
-                    input: input.into(),
-                    context: "missing alias".into(),
-                }),
+                None => Err(CmdError::InvalidFilterExpr(input.to_owned()).into()),
             },
-            input if input.contains("::") => Err(CliError::Directive {
-                input: input.into(),
-                context: "Cannot filter on given field".into(),
-            }),
-            _ => Err(CliError::Directive {
-                input: input.into(),
-                context: "Invalid filter query".into(),
-            }),
+            input if input.contains("::") => match input.find("::").unwrap() {
+                0 => Err(CmdError::InvalidFilterExpr(input.to_owned()).into()),
+                x => {
+                    let (field, _) = input.split_at(x);
+                    Err(CmdError::InvalidFilterField(field.to_string()).into())
+                }
+            },
+            input => Err(CmdError::InvalidFilterExpr(input.to_owned()).into()),
         }
     }
 }
@@ -273,9 +283,7 @@ impl FromStr for S {
         match input {
             "no_sort" => Ok(Self::NoSort),
             "ts" | "timestamp" => Ok(Self::ByTimestamp),
-            _ => Err(CliError::InvalidSortQuery {
-                input: input.into(),
-            }),
+            s => Err(CmdError::InvalidSort(s.to_owned()).into()),
         }
     }
 }
