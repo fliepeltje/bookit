@@ -1,12 +1,10 @@
 mod alias;
-mod book;
 mod contractors;
 mod errors;
 mod generics;
 mod hours;
 mod utils;
 use alias::{exec_cmd_alias, AliasArgs};
-use book::{exec_cmd_book, BookingArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
 use errors::CliError;
 use generics::Result;
@@ -50,10 +48,6 @@ impl std::string::ToString for Action {
 
 #[derive(StructOpt, Debug)]
 enum Opt {
-    /// Book time for a project alias
-    #[structopt(name = "book")]
-    Book(BookingArgs),
-    /// View or delete existing hourlog item
     /// Manage aliases
     #[structopt(name = "alias")]
     Alias(AliasArgs),
@@ -67,7 +61,6 @@ enum Opt {
 
 fn main() -> () {
     let r = match Opt::from_args() {
-        Opt::Book(args) => exec_cmd_book(args),
         Opt::Alias(args) => exec_cmd_alias(args),
         Opt::Contractors(args) => exec_cmd_contractor(args),
         Opt::Hours(cmd) => cmd.exec(),
