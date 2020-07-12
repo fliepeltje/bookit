@@ -1,4 +1,5 @@
 use crate::errors::CliError;
+use colored::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{env, fs, path};
@@ -78,10 +79,14 @@ where
         let map = Self::mapping()?;
         match (slug_expect, map.contains_key(slug)) {
             (true, true) | (false, false) => Ok(()),
-            (x, _) => Err(CliError::Slug {
-                slug: slug.into(),
-                expect: x,
-            }),
+            (true, false) => Err(CliError::CmdError(format!(
+                "item with slug {} was not found",
+                slug.yellow().bold()
+            ))),
+            (false, true) => Err(CliError::CmdError(format!(
+                "item with slug {} already exists",
+                slug.yellow().bold()
+            ))),
         }
     }
 
@@ -89,10 +94,20 @@ where
         let mapping = Self::mapping()?;
         match mapping.get(slug) {
             Some(obj) => Ok(obj.clone()),
-            None => Err(CliError::SlugNotFound {
-                slug: slug.to_owned(),
-                existing: Self::available_slugs(mapping),
-            }),
+            None => {
+                let existing = Self::available_slugs(Self::mapping()?);
+                Err(CliError::CmdError(format!(
+                    "{} not found. Available values are: {}",
+                    slug.yellow().bold(),
+                    match existing.len() {
+                        0..=10 => format!("{}", existing.join(" | ").green()),
+                        _ => format!(
+                            "{} (output truncated...)",
+                            existing[0..10].to_vec().join(" | ").green()
+                        ),
+                    }
+                )))
+            }
         }
     }
 
