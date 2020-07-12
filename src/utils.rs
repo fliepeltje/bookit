@@ -3,6 +3,20 @@ use crate::generics::Result;
 use chrono::{Local as LocalTime, NaiveDate, NaiveTime, Weekday, Datelike};
 use std::str::FromStr;
 
+enum UtilError {
+    NotDirective(String),
+    DirectiveInvalid(String),
+}
+
+impl From<UtilError> for CliError {
+    fn from(err: UtilError) -> Self {
+        match err {
+            UtilError::NotDirective(i) => Self::CmdError(format!("{} is not a directive (syntax is '<directive>::<argument>'", i)),
+            UtilError::DirectiveInvalid(i) => Self::CmdError(format!("{} is not a valid directive (syntax is '<directive>::<argument>'", i))
+        }
+    }
+}
+
 pub fn slugify(s: String) -> String {
     s.to_lowercase().split_whitespace().collect()
 }
@@ -48,6 +62,19 @@ pub fn parse_date(date_str: &str) -> Result<NaiveDate> {
     }
 }
 
+pub fn partition_directive(directive: &str) -> Result<(&str, &str)> {
+    if let Some(pos) = directive.find("::") {
+        let (dir, arg) = directive.split_at(pos);
+        if dir == "" || arg == "" {
+            Err(UtilError::DirectiveInvalid(directive.to_string()).into())
+        } else {
+            Ok((dir, arg))
+        }
+        
+    } else {
+        Err(UtilError::NotDirective(directive.to_string()).into())
+    }
+}
 
 #[cfg(test)]
 mod tests {
