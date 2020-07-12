@@ -13,6 +13,8 @@ pub enum CliError {
     Directive { input: String, context: String },
     Parse { input: String, description: String },
     SlugNotFound { slug: String, existing: Vec<String> },
+    FilterNoResults,
+    InvalidSortQuery { input: String },
 }
 
 impl Error for CliError {}
@@ -94,6 +96,8 @@ impl std::fmt::Display for CliError {
                 input.yellow(),
                 description
             ),
+            Self::FilterNoResults => write!(f, "no results"),
+            Self::InvalidSortQuery { input } => write!(f, "no sort"),
         }
     }
 }

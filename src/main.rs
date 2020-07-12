@@ -10,8 +10,10 @@ use book::{exec_cmd_book, BookingArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
 use errors::CliError;
 use generics::Result;
-use hours::{exec_cmd_hours, HourLogArgs};
+use hours::{exec_cmd_hours, Cmd, HourLogArgs};
 use structopt::StructOpt;
+#[macro_use]
+extern crate pipeline;
 
 #[derive(Debug)]
 pub enum Action {
@@ -61,6 +63,9 @@ enum Opt {
     /// Manage contractors
     #[structopt(name = "contractors")]
     Contractors(ContractorArgs),
+    /// Manage hours
+    #[structopt(name = "hours2")]
+    HoursBetter(Cmd),
 }
 
 fn main() -> () {
@@ -69,6 +74,7 @@ fn main() -> () {
         Opt::Alias(args) => exec_cmd_alias(args),
         Opt::Contractors(args) => exec_cmd_contractor(args),
         Opt::Hours(args) => exec_cmd_hours(args),
+        Opt::HoursBetter(cmd) => cmd.exec(),
     };
     match r {
         Ok(_) => (),

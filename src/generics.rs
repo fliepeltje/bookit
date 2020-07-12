@@ -119,6 +119,43 @@ where
     }
 }
 
+pub trait Filter<F, S>
+where
+    Self: std::marker::Sized,
+    F: Clone,
+{
+    const DEFAULT_SORT: S;
+    const DEFAULT_FILTER: F;
+
+    fn filter(items: Vec<Self>, method: F) -> Vec<Self>;
+    fn sort(items: Vec<Self>, method: S) -> Vec<Self>;
+    fn get_base_items() -> Result<Vec<Self>>;
+
+    fn get_default_items(filter: Option<F>, sort: Option<S>) -> Result<Vec<Self>> {
+        let apply_filter = |v| Self::filter(v, Self::DEFAULT_FILTER);
+        let apply_sort = |v| Self::sort(v, Self::DEFAULT_SORT);
+        let items = Self::get_base_items()?;
+        let items = pipe!(
+            items
+            => apply_filter
+            => apply_sort
+        );
+        Ok(items)
+    }
+
+    fn apply_filterset(items: Vec<Self>, filters: Vec<F>) -> Result<Vec<Self>> {
+        match (items.len(), filters.len()) {
+            (0, _) => Err(CliError::FilterNoResults),
+            (_, 0) => Ok(items),
+            (_, _) => {
+                let head: F = filters.first().unwrap().clone();
+                let tail: Vec<F> = filters[1..].to_vec();
+                Self::apply_filterset(Self::filter(items, head), tail)
+            }
+        }
+    }
+}
+
 pub fn add_subject<'de, T>(obj: T) -> Result<()>
 where
     T: Crud<'de>,
@@ -155,5 +192,18 @@ where
             println!("{}", T::format_list(items))
         }
     };
+    Ok(())
+}
+
+pub fn view_filtered_set<'de, T, F, S>(filters: Vec<F>, sort: S) -> Result<()>
+where
+    T: Filter<F, S>,
+    F: Clone,
+    T: View,
+{
+    let items = T::get_base_items()?;
+    let items = T::apply_filterset(items, filters)?;
+    let items = T::sort(items, sort);
+    println!("{}", T::format_list(items));
     Ok(())
 }
