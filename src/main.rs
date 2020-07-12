@@ -10,7 +10,6 @@ use book::{exec_cmd_book, BookingArgs};
 use contractors::{exec_cmd_contractor, ContractorArgs};
 use errors::CliError;
 use generics::Result;
-use hours::{exec_cmd_hours, Cmd, HourLogArgs};
 use structopt::StructOpt;
 #[macro_use]
 extern crate pipeline;
@@ -55,8 +54,6 @@ enum Opt {
     #[structopt(name = "book")]
     Book(BookingArgs),
     /// View or delete existing hourlog item
-    #[structopt(name = "hours")]
-    Hours(HourLogArgs),
     /// Manage aliases
     #[structopt(name = "alias")]
     Alias(AliasArgs),
@@ -64,8 +61,8 @@ enum Opt {
     #[structopt(name = "contractors")]
     Contractors(ContractorArgs),
     /// Manage hours
-    #[structopt(name = "hours2")]
-    HoursBetter(Cmd),
+    #[structopt(name = "hours")]
+    Hours(hours::Cmd),
 }
 
 fn main() -> () {
@@ -73,8 +70,7 @@ fn main() -> () {
         Opt::Book(args) => exec_cmd_book(args),
         Opt::Alias(args) => exec_cmd_alias(args),
         Opt::Contractors(args) => exec_cmd_contractor(args),
-        Opt::Hours(args) => exec_cmd_hours(args),
-        Opt::HoursBetter(cmd) => cmd.exec(),
+        Opt::Hours(cmd) => cmd.exec(),
     };
     match r {
         Ok(_) => (),
