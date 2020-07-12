@@ -54,6 +54,7 @@ dependencies = [
  "chrono",
  "colored",
  "harsh",
+ "pipeline",
  "proptest",
  "read_input",
  "serde",
@@ -190,6 +191,12 @@ checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
 dependencies = [
  "autocfg",
 ]
+
+[[package]]
+name = "pipeline"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d15b6607fa632996eb8a17c9041cb6071cb75ac057abd45dece578723ea8c7c0"
 
 [[package]]
 name = "ppv-lite86"
