@@ -4,7 +4,6 @@ mod errors;
 mod generics;
 mod hours;
 mod utils;
-use contractors::{exec_cmd_contractor, ContractorArgs};
 use errors::CliError;
 use generics::Result;
 use structopt::StructOpt;
@@ -52,7 +51,7 @@ enum Opt {
     Alias(alias::Cmd),
     /// Manage contractors
     #[structopt(name = "contractors")]
-    Contractors(ContractorArgs),
+    Contractors(contractors::Cmd),
     /// Manage hours
     #[structopt(name = "hours")]
     Hours(hours::Cmd),
@@ -61,7 +60,7 @@ enum Opt {
 fn main() -> () {
     let r = match Opt::from_args() {
         Opt::Alias(cmd) => cmd.exec(),
-        Opt::Contractors(args) => exec_cmd_contractor(args),
+        Opt::Contractors(cmd) => cmd.exec(),
         Opt::Hours(cmd) => cmd.exec(),
     };
     match r {
