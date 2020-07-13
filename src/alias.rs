@@ -74,7 +74,7 @@ impl Cmd {
     }
 }
 
-impl Crud<'_> for Alias {
+impl Crud for Alias {
     const FILE: &'static str = "alias_test.toml";
 
     fn identifier(&self) -> String {

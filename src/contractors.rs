@@ -59,7 +59,7 @@ impl Cmd {
     }
 }
 
-impl Crud<'_> for Contractor {
+impl Crud for Contractor {
     const FILE: &'static str = "contractors_test.toml";
 
     fn identifier(&self) -> String {

@@ -1,17 +1,14 @@
 use crate::errors::CliError;
 use colored::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{env, fs, path};
 
 pub type Result<T, E = CliError> = std::result::Result<T, E>;
 type Mapping<T> = HashMap<String, T>;
 
-pub trait Crud<'de>
+pub trait Crud
 where
     Self: std::marker::Sized,
-    Self: Serialize,
-    Self: Deserialize<'de>,
     Self: Clone,
 {
     const FILE: &'static str;
@@ -171,16 +168,16 @@ where
     }
 }
 
-pub fn add_subject<'de, T>(obj: T) -> Result<()>
+pub fn add_subject<T>(obj: T) -> Result<()>
 where
-    T: Crud<'de>,
+    T: Crud,
 {
     Ok(obj.add()?)
 }
 
-pub fn update_subject<'de, T>(obj_slug: &str) -> Result<()>
+pub fn update_subject<T>(obj_slug: &str) -> Result<()>
 where
-    T: Crud<'de>,
+    T: Crud,
 {
     let obj = T::retrieve(obj_slug)?;
     let obj = obj.interactive_update();
@@ -189,7 +186,7 @@ where
 
 pub fn delete_subject<'de, T>(obj_slug: &str) -> Result<()>
 where
-    T: Crud<'de>,
+    T: Crud,
 {
     let obj = T::retrieve(obj_slug)?;
     Ok(obj.delete()?)
@@ -197,7 +194,7 @@ where
 
 pub fn view_subject<'de, T>(obj_slug: Option<String>) -> Result<()>
 where
-    T: Crud<'de>,
+    T: Crud,
     T: View,
 {
     match obj_slug {
