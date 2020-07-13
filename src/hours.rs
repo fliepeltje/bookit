@@ -222,7 +222,7 @@ impl View for HourLog {
     }
 }
 
-impl Crud<'_> for HourLog {
+impl Crud for HourLog {
     const FILE: &'static str = "hourstest.json";
 
     fn identifier(&self) -> String {
