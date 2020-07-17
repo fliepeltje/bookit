@@ -1,5 +1,6 @@
 mod alias;
 mod contractors;
+mod db;
 mod errors;
 mod generics;
 mod hours;
@@ -7,6 +8,9 @@ mod utils;
 use structopt::StructOpt;
 #[macro_use]
 extern crate pipeline;
+
+pub const BOOKIT_PATH: &'static str = "BOOKIT_PATH";
+pub const DB_PATH: &'static str = "BOOKIT_DB_PATH";
 
 #[derive(StructOpt, Debug)]
 enum Opt {

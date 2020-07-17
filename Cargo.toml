@@ -17,6 +17,8 @@ serde_json = "1.0.56"
 toml = "0.5.6"
 serde_derive = "1.0.114"
 pipeline = "0.5.0"
+refinery = { version = "0.3", features = ["rusqlite"]}
+rusqlite = "0.23.1"
 
 [dev-dependencies]
 proptest = "0.10.0"

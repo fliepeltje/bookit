@@ -1,4 +1,5 @@
 use colored::*;
+use rusqlite::Error as RusqError;
 use std::env::VarError;
 use std::error::Error;
 
@@ -12,6 +13,7 @@ pub enum CliError {
     FilterNoResults,
     CmdError(String),
     BinaryError(String),
+    DbError(RusqError),
 }
 
 impl Error for CliError {}
@@ -49,6 +51,7 @@ impl std::fmt::Display for CliError {
             }
             Self::CmdError(msg) => write!(f, "{} {}", arg_error("Usage"), msg),
             Self::BinaryError(msg) => write!(f, "{} {}", bin_error("Internal"), msg),
+            Self::DbError(err) => write!(f, "{} {}", bin_error("Database"), err),
         }
     }
 }
