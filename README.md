@@ -4,14 +4,11 @@
 
 A CLI tool for keeping track of how your time is spent, specifically in the context of freelancing.
 
-## Why is this?
 
-I want a tool that allows me to easily log my hours. I want to be able to see what I have done and I want to be able to share this with clients. The long term goal is to be able to generate invoices based on logged hours and make some cool charts of time expenditure. 
-
-## How can this also be where I am?
+## Installation
 You can install the CLI tool with `cargo` by specifying the git flag and referencing this repository.
 
-## What is the map of all the roads?
+## Roadmap
 The first priority is having a great cli experience and relevant data structures. At present all data structures are fairly minimal. In order of priority I would say:
 1. Improved data structures for `Contractor` and `Alias` that hold relevant information
 2. Good error handling that does not rely on using `panic!`
