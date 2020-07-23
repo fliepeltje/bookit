@@ -2,7 +2,7 @@ create table contractor
 (
     slug varchar(15) not null primary key,
     name varchar(255) not null
-)
+);
 
 create table alias
 (
@@ -10,7 +10,7 @@ create table alias
     contractor varchar(15) not null,
     rate integer not null,
     foreign key(contractor) references contractor(slug)
-)
+);
 
 create table timelog
 (
@@ -22,4 +22,4 @@ create table timelog
     ticket varchar(15) null,
     timestamp datetime not null,
     foreign key(alias) references alias(slug)
-)
+);

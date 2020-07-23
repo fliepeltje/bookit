@@ -1,6 +1,7 @@
 use crate::errors::CliError;
 use crate::generics::Result;
 use crate::DB_PATH;
+mod contractors;
 use rusqlite::{Connection, Error};
 use std::path::Path;
 
@@ -24,6 +25,22 @@ fn establish_connection() -> Result<Connection> {
     Ok(Connection::open(&db_path)?)
 }
 
-fn migrate(mut conn: Connection) -> () {
+fn migrate(mut conn: Connection) -> Connection {
     refinery::migrations::runner().run(&mut conn).unwrap();
+    conn
+}
+
+pub trait Crud
+where
+    Self: std::marker::Sized,
+{
+    fn create(&self) -> Result<()>;
+    fn retrieve(&self) -> Result<Self>;
+    fn update(&self) -> Result<()>;
+    fn delete(&self) -> Result<()>;
+    fn retrieve_all() -> Result<Vec<Self>>;
+
+    fn conn() -> Result<Connection> {
+        establish_connection()
+    }
 }
