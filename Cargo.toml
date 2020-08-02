@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["Donatas Rasiukevicius <donatas@rasiukevicius.dev>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 structopt = "0.3.15"
 chrono = {version = "0.4.13", features=["serde"]}
@@ -18,7 +16,7 @@ toml = "0.5.6"
 serde_derive = "1.0.114"
 pipeline = "0.5.0"
 refinery = { version = "0.3", features = ["rusqlite"]}
-rusqlite = "0.23.1"
+rusqlite = { version = "0.23.1", features=["chrono"]}
 
 [dev-dependencies]
 proptest = "0.10.0"

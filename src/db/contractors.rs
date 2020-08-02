@@ -1,5 +1,4 @@
 use crate::contractors::Contractor;
-use crate::db::migrate;
 use crate::generics::Result;
 use rusqlite::{named_params, params, Connection, NO_PARAMS};
 
@@ -36,11 +35,12 @@ pub fn get_contractors(conn: &Connection) -> Result<Vec<Contractor>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::migrate;
 
     #[test]
     fn can_create_contractor() {
         let conn = Connection::open_in_memory().unwrap();
-        let conn = migrate(conn);
+        let conn = migrate(conn).unwrap();
         let contractor = Contractor {
             slug: "cont".into(),
             name: "Contractor".into(),
